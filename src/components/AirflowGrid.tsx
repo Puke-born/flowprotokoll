@@ -68,7 +68,7 @@ const AirflowGrid = memo(({ rows, onCellChange }: AirflowGridProps) => {
             <th className="border-r border-grid-border/30"></th>
             <th className="border-r border-grid-border/30"></th>
             <th className="border-r border-grid-border/30"></th>
-            {COLUMNS.slice(1).map((col, i) => (
+            {COLUMNS.slice(2).map((col, i) => (
               <th
                 key={col.key}
                 className={`px-1 py-1.5 text-[9px] font-medium uppercase tracking-wider text-center ${
