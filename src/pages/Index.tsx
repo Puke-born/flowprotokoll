@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
-import { FileSpreadsheet, Download, Trash2 } from "lucide-react";
+import { FileSpreadsheet, Download, Trash2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
-import { exportToExcel } from "@/lib/exportExcel";
+import { exportAllSheets } from "@/lib/exportExcel";
 import { toast } from "sonner";
 
 const NUM_ROWS = 36; // rows 14–49
@@ -11,57 +11,104 @@ const NUM_ROWS = 36; // rows 14–49
 const createEmptyRows = (): GridRow[] =>
   Array.from({ length: NUM_ROWS }, () => ({}));
 
+interface Sheet {
+  system: string;
+  plan: string;
+  rows: GridRow[];
+  notes: string;
+}
+
+const createEmptySheet = (): Sheet => ({
+  system: "",
+  plan: "",
+  rows: createEmptyRows(),
+  notes: "",
+});
+
 const Index = () => {
-  const [header, setHeader] = useState({
+  const [sharedHeader, setSharedHeader] = useState({
     kund: "",
     anlaggning: "",
-    system: "",
     utfordAv: "",
-    plan: "",
-    sidNr: "",
     arbNr: "",
     datum: new Date().toISOString().slice(0, 10),
   });
 
-  const [rows, setRows] = useState<GridRow[]>(createEmptyRows);
-  const [notes, setNotes] = useState("");
+  const [sheets, setSheets] = useState<Sheet[]>([createEmptySheet()]);
+  const [activeSheet, setActiveSheet] = useState(0);
 
-  const updateHeader = useCallback((key: string) => (value: string) => {
-    setHeader((prev) => ({ ...prev, [key]: value }));
+  const sheet = sheets[activeSheet];
+  const totalPages = sheets.length;
+  const sidNr = `${activeSheet + 1}/${totalPages}`;
+
+  const updateSharedHeader = useCallback((key: string) => (value: string) => {
+    setSharedHeader((prev) => ({ ...prev, [key]: value }));
   }, []);
+
+  const updateSheetField = useCallback((key: "system" | "plan") => (value: string) => {
+    setSheets((prev) => {
+      const next = [...prev];
+      next[activeSheet] = { ...next[activeSheet], [key]: value };
+      return next;
+    });
+  }, [activeSheet]);
 
   const handleCellChange = useCallback(
     (rowIndex: number, colKey: string, value: string) => {
-      setRows((prev) => {
+      setSheets((prev) => {
         const next = [...prev];
-        next[rowIndex] = { ...next[rowIndex], [colKey]: value };
+        const rows = [...next[activeSheet].rows];
+        rows[rowIndex] = { ...rows[rowIndex], [colKey]: value };
+        next[activeSheet] = { ...next[activeSheet], rows };
         return next;
       });
     },
-    []
+    [activeSheet]
   );
 
+  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setSheets((prev) => {
+      const next = [...prev];
+      next[activeSheet] = { ...next[activeSheet], notes: value };
+      return next;
+    });
+  }, [activeSheet]);
+
+  const handleAddSheet = useCallback(() => {
+    setSheets((prev) => [...prev, createEmptySheet()]);
+    setActiveSheet((prev) => prev + 1);
+    toast.success("Nytt blad tillagt");
+  }, []);
+
+  const handleRemoveSheet = useCallback(() => {
+    if (sheets.length <= 1) return;
+    setSheets((prev) => prev.filter((_, i) => i !== activeSheet));
+    setActiveSheet((prev) => Math.min(prev, sheets.length - 2));
+    toast.info("Blad borttaget");
+  }, [activeSheet, sheets.length]);
+
   const handleExport = useCallback(() => {
-    exportToExcel(header, rows, notes);
+    exportAllSheets(sharedHeader, sheets);
     toast.success("Excel-fil exporterad!");
-  }, [header, rows, notes]);
+  }, [sharedHeader, sheets]);
 
   const handleClear = useCallback(() => {
-    setRows(createEmptyRows());
-    setNotes("");
-    setHeader((prev) => ({ ...prev, kund: "", anlaggning: "", system: "", plan: "", sidNr: "", arbNr: "" }));
+    setSheets([createEmptySheet()]);
+    setActiveSheet(0);
+    setSharedHeader((prev) => ({ ...prev, kund: "", anlaggning: "", arbNr: "" }));
     toast.info("Formuläret har rensats");
   }, []);
 
   const headerFields = [
-    { label: "Kund", value: header.kund, onChange: updateHeader("kund") },
-    { label: "Plan", value: header.plan, onChange: updateHeader("plan") },
-    { label: "Anläggning", value: header.anlaggning, onChange: updateHeader("anlaggning") },
-    { label: "Sid nr", value: header.sidNr, onChange: updateHeader("sidNr") },
-    { label: "System", value: header.system, onChange: updateHeader("system") },
-    { label: "Arb.nr", value: header.arbNr, onChange: updateHeader("arbNr") },
-    { label: "Utfört av", value: header.utfordAv, onChange: updateHeader("utfordAv") },
-    { label: "Datum", value: header.datum, onChange: updateHeader("datum") },
+    { label: "Kund", value: sharedHeader.kund, onChange: updateSharedHeader("kund") },
+    { label: "Plan", value: sheet.plan, onChange: updateSheetField("plan") },
+    { label: "Anläggning", value: sharedHeader.anlaggning, onChange: updateSharedHeader("anlaggning") },
+    { label: "Sid nr", value: sidNr, onChange: () => {}, readOnly: true },
+    { label: "System", value: sheet.system, onChange: updateSheetField("system") },
+    { label: "Arb.nr", value: sharedHeader.arbNr, onChange: updateSharedHeader("arbNr") },
+    { label: "Utfört av", value: sharedHeader.utfordAv, onChange: updateSharedHeader("utfordAv") },
+    { label: "Datum", value: sharedHeader.datum, onChange: updateSharedHeader("datum") },
   ];
 
   return (
@@ -76,20 +123,11 @@ const Index = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleClear}
-              className="gap-1.5"
-            >
+            <Button variant="outline" size="sm" onClick={handleClear} className="gap-1.5">
               <Trash2 className="w-4 h-4" />
               <span className="hidden sm:inline">Rensa</span>
             </Button>
-            <Button
-              size="sm"
-              onClick={handleExport}
-              className="gap-1.5"
-            >
+            <Button size="sm" onClick={handleExport} className="gap-1.5">
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">Exportera Excel</span>
             </Button>
@@ -99,15 +137,44 @@ const Index = () => {
 
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-4 space-y-4 pb-8">
+        {/* Sheet tabs */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            {sheets.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveSheet(i)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  i === activeSheet
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Blad {i + 1}
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={handleAddSheet} className="gap-1 h-8">
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Nytt blad</span>
+          </Button>
+          {sheets.length > 1 && (
+            <Button variant="ghost" size="sm" onClick={handleRemoveSheet} className="gap-1 h-8 text-destructive hover:text-destructive">
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Ta bort blad</span>
+            </Button>
+          )}
+        </div>
+
         <ProtocolHeader fields={headerFields} />
-        <AirflowGrid rows={rows} onCellChange={handleCellChange} />
+        <AirflowGrid rows={sheet.rows} onCellChange={handleCellChange} />
         <div className="rounded-lg border border-grid-border shadow-sm overflow-hidden">
           <div className="bg-grid-header px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Övriga anteckningar</span>
           </div>
           <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            value={sheet.notes}
+            onChange={handleNotesChange}
             placeholder="Skriv eventuella anteckningar här..."
             className="w-full min-h-[100px] px-3 py-2 text-sm font-mono bg-grid-cell text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
           />
