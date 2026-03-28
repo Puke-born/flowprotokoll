@@ -4,6 +4,7 @@ interface HeaderField {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  readOnly?: boolean;
 }
 
 interface ProtocolHeaderProps {
