@@ -92,9 +92,8 @@ const AirflowGrid = memo(({ rows, onCellChange }: AirflowGridProps) => {
               {COLUMNS.map((col, colIdx) => (
                 <td
                   key={col.key}
-                  colSpan={col.colSpan}
                   className={`px-0 py-0 border-r border-grid-border/30 last:border-r-0 ${
-                    colIdx === 4 ? "border-r-2 border-grid-border/50" : ""
+                    colIdx === 5 ? "border-r-2 border-grid-border/50" : ""
                   }`}
                 >
                   <input
