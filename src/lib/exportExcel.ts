@@ -1,52 +1,40 @@
 import * as XLSX from "xlsx";
 import type { GridRow } from "@/components/AirflowGrid";
 
-interface HeaderData {
+interface SharedHeader {
   kund: string;
   anlaggning: string;
-  system: string;
   utfordAv: string;
-  plan: string;
-  sidNr: string;
   arbNr: string;
   datum: string;
 }
 
-const COL_KEYS = [
-  "rum_nr",
-  "rum_namn",
-  "tilluft_dontyp",
-  "tilluft_inst",
-  "tilluft_beraknat",
-  "tilluft_uppmat",
-  "franluft_dontyp",
-  "franluft_inst",
-  "franluft_beraknat",
-  "franluft_uppmat",
-];
+interface Sheet {
+  system: string;
+  plan: string;
+  rows: GridRow[];
+  notes: string;
+}
 
-export function exportToExcel(header: HeaderData, rows: GridRow[], notes: string = "") {
-  const wb = XLSX.utils.book_new();
+function buildSheet(shared: SharedHeader, sheet: Sheet, sidNr: string): (string | number | null)[][] {
   const wsData: (string | number | null)[][] = [];
 
-  // Header rows (rows 1-13 in Excel)
-  wsData.push([]); // row 1
-  wsData.push([null, null, null, "OVK - Luftflödesprotokoll"]); // row 2
-  wsData.push([]); // row 3
-  wsData.push(["Kund:", null, header.kund, null, null, null, null, "Plan:", null, header.plan]); // row 4
-  wsData.push(["Anläggning:", null, header.anlaggning, null, null, null, null, "Sid nr:", null, header.sidNr]); // row 5
-  wsData.push(["System:", null, header.system, null, null, null, null, "Arb.nr:", null, header.arbNr]); // row 6
-  wsData.push(["Utfört av:", null, header.utfordAv, null, null, null, null, "Datum:", null, header.datum]); // row 7
-  wsData.push([]); // row 8
-  wsData.push([null, null, "Tilluft", null, "Luftmängd", null, "Frånluft", null, "Luftmängd"]); // row 9
-  wsData.push([]); // row 10
-  wsData.push(["Rum"]); // row 11
-  wsData.push([null, null, null, "Inst", "Luftflöde", null, null, "Inst", "Luftflöde"]); // row 12
-  wsData.push([null, null, "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt", "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt"]); // row 13
+  wsData.push([]);
+  wsData.push([null, null, null, "OVK - Luftflödesprotokoll"]);
+  wsData.push([]);
+  wsData.push(["Kund:", null, shared.kund, null, null, null, null, "Plan:", null, sheet.plan]);
+  wsData.push(["Anläggning:", null, shared.anlaggning, null, null, null, null, "Sid nr:", null, sidNr]);
+  wsData.push(["System:", null, sheet.system, null, null, null, null, "Arb.nr:", null, shared.arbNr]);
+  wsData.push(["Utfört av:", null, shared.utfordAv, null, null, null, null, "Datum:", null, shared.datum]);
+  wsData.push([]);
+  wsData.push([null, null, "Tilluft", null, "Luftmängd", null, "Frånluft", null, "Luftmängd"]);
+  wsData.push([]);
+  wsData.push(["Rum"]);
+  wsData.push([null, null, null, "Inst", "Luftflöde", null, null, "Inst", "Luftflöde"]);
+  wsData.push([null, null, "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt", "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt"]);
 
-  // Data rows 14-55
   for (let i = 0; i < 36; i++) {
-    const row = rows[i] || {};
+    const row = sheet.rows[i] || {};
     wsData.push([
       row.rum_nr || null,
       row.rum_namn || null,
@@ -61,15 +49,26 @@ export function exportToExcel(header: HeaderData, rows: GridRow[], notes: string
     ]);
   }
 
-  // Row 50 empty, rows 51-55 for notes
   wsData.push([]);
-  if (notes) {
-    wsData.push(["Övriga anteckningar:", null, notes]);
+  if (sheet.notes) {
+    wsData.push(["Övriga anteckningar:", null, sheet.notes]);
   }
 
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  XLSX.utils.book_append_sheet(wb, ws, "Luftflödesprotokoll");
+  return wsData;
+}
 
-  const filename = `Luftflodesprotokoll_${header.kund || "export"}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+export function exportAllSheets(shared: SharedHeader, sheets: Sheet[]) {
+  const wb = XLSX.utils.book_new();
+  const total = sheets.length;
+
+  sheets.forEach((sheet, i) => {
+    const sidNr = `${i + 1}/${total}`;
+    const wsData = buildSheet(shared, sheet, sidNr);
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const name = total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`;
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  });
+
+  const filename = `Luftflodesprotokoll_${shared.kund || "export"}_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
