@@ -25,7 +25,7 @@ const COL_KEYS = [
   "franluft_uppmat",
 ];
 
-export function exportToExcel(header: HeaderData, rows: GridRow[]) {
+export function exportToExcel(header: HeaderData, rows: GridRow[], notes: string = "") {
   const wb = XLSX.utils.book_new();
   const wsData: (string | number | null)[][] = [];
 
