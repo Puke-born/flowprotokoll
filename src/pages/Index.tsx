@@ -6,7 +6,7 @@ import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import { exportToExcel } from "@/lib/exportExcel";
 import { toast } from "sonner";
 
-const NUM_ROWS = 42; // rows 14–55
+const NUM_ROWS = 36; // rows 14–49
 
 const createEmptyRows = (): GridRow[] =>
   Array.from({ length: NUM_ROWS }, () => ({}));
@@ -24,6 +24,7 @@ const Index = () => {
   });
 
   const [rows, setRows] = useState<GridRow[]>(createEmptyRows);
+  const [notes, setNotes] = useState("");
 
   const updateHeader = useCallback((key: string) => (value: string) => {
     setHeader((prev) => ({ ...prev, [key]: value }));
@@ -41,12 +42,13 @@ const Index = () => {
   );
 
   const handleExport = useCallback(() => {
-    exportToExcel(header, rows);
+    exportToExcel(header, rows, notes);
     toast.success("Excel-fil exporterad!");
-  }, [header, rows]);
+  }, [header, rows, notes]);
 
   const handleClear = useCallback(() => {
     setRows(createEmptyRows());
+    setNotes("");
     setHeader((prev) => ({ ...prev, kund: "", anlaggning: "", system: "", plan: "", sidNr: "", arbNr: "" }));
     toast.info("Formuläret har rensats");
   }, []);
@@ -99,6 +101,17 @@ const Index = () => {
       <main className="max-w-5xl mx-auto px-4 py-4 space-y-4 pb-8">
         <ProtocolHeader fields={headerFields} />
         <AirflowGrid rows={rows} onCellChange={handleCellChange} />
+        <div className="rounded-lg border border-grid-border shadow-sm overflow-hidden">
+          <div className="bg-grid-header px-3 py-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Övriga anteckningar</span>
+          </div>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Skriv eventuella anteckningar här..."
+            className="w-full min-h-[100px] px-3 py-2 text-sm font-mono bg-grid-cell text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+          />
+        </div>
         <p className="text-[11px] text-muted-foreground text-right">
           Samtliga luftflöden i l/s
         </p>

@@ -25,7 +25,7 @@ const COL_KEYS = [
   "franluft_uppmat",
 ];
 
-export function exportToExcel(header: HeaderData, rows: GridRow[]) {
+export function exportToExcel(header: HeaderData, rows: GridRow[], notes: string = "") {
   const wb = XLSX.utils.book_new();
   const wsData: (string | number | null)[][] = [];
 
@@ -45,7 +45,7 @@ export function exportToExcel(header: HeaderData, rows: GridRow[]) {
   wsData.push([null, null, "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt", "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt"]); // row 13
 
   // Data rows 14-55
-  for (let i = 0; i < 42; i++) {
+  for (let i = 0; i < 36; i++) {
     const row = rows[i] || {};
     wsData.push([
       row.rum_nr || null,
@@ -59,6 +59,12 @@ export function exportToExcel(header: HeaderData, rows: GridRow[]) {
       row.franluft_beraknat || null,
       row.franluft_uppmat || null,
     ]);
+  }
+
+  // Row 50 empty, rows 51-55 for notes
+  wsData.push([]);
+  if (notes) {
+    wsData.push(["Övriga anteckningar:", null, notes]);
   }
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
