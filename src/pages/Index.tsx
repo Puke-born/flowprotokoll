@@ -42,9 +42,9 @@ const Index = () => {
   );
 
   const handleExport = useCallback(() => {
-    exportToExcel(header, rows);
+    exportToExcel(header, rows, notes);
     toast.success("Excel-fil exporterad!");
-  }, [header, rows]);
+  }, [header, rows, notes]);
 
   const handleClear = useCallback(() => {
     setRows(createEmptyRows());
