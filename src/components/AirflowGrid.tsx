@@ -87,7 +87,7 @@ const AirflowGrid = memo(({ rows, onCellChange }: AirflowGridProps) => {
               className={`${rowIdx % 2 === 0 ? "bg-grid-cell" : "bg-grid-cell-alt"} hover:bg-primary/5 transition-colors`}
             >
               <td className="px-1 py-0 text-[10px] text-muted-foreground text-center border-r border-grid-border/40 font-mono">
-                {rowIdx + 14}
+                {rowIdx + 1}
               </td>
               {COLUMNS.map((col, colIdx) => (
                 <td
