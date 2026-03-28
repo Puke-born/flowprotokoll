@@ -4,6 +4,7 @@ interface HeaderField {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  readOnly?: boolean;
 }
 
 interface ProtocolHeaderProps {
@@ -21,8 +22,9 @@ const ProtocolHeader = memo(({ fields }: ProtocolHeaderProps) => {
           <input
             type="text"
             value={field.value}
+            readOnly={field.readOnly}
             onChange={(e) => field.onChange(e.target.value)}
-            className="h-11 px-3 rounded-md border border-input bg-card text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+            className={`h-11 px-3 rounded-md border border-input bg-card text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring ${field.readOnly ? "bg-muted cursor-default" : ""}`}
             placeholder={field.label}
           />
         </div>
