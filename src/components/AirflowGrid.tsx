@@ -1,7 +1,8 @@
 import { memo, useCallback, useRef } from "react";
 
 const COLUMNS = [
-  { key: "rum", label: "Rum", colSpan: 2 },
+  { key: "rum_nr", label: "Rum" },
+  { key: "rum_namn", label: "" },
   { key: "tilluft_dontyp", label: "Dontyp" },
   { key: "tilluft_inst", label: "Pa/K-f" },
   { key: "tilluft_beraknat", label: "Beräknat" },
