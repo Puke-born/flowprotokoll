@@ -24,6 +24,7 @@ const Index = () => {
   });
 
   const [rows, setRows] = useState<GridRow[]>(createEmptyRows);
+  const [notes, setNotes] = useState("");
 
   const updateHeader = useCallback((key: string) => (value: string) => {
     setHeader((prev) => ({ ...prev, [key]: value }));
