@@ -48,6 +48,7 @@ const Index = () => {
 
   const handleClear = useCallback(() => {
     setRows(createEmptyRows());
+    setNotes("");
     setHeader((prev) => ({ ...prev, kund: "", anlaggning: "", system: "", plan: "", sidNr: "", arbNr: "" }));
     toast.info("Formuläret har rensats");
   }, []);
