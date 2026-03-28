@@ -13,8 +13,8 @@ interface HeaderData {
 }
 
 const COL_KEYS = [
-  "rum",
-  "rum", // col B is part of "Rum" spanning A-B
+  "rum_nr",
+  "rum_namn",
   "tilluft_dontyp",
   "tilluft_inst",
   "tilluft_beraknat",
