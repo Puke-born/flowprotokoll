@@ -61,6 +61,12 @@ export function exportToExcel(header: HeaderData, rows: GridRow[], notes: string
     ]);
   }
 
+  // Row 50 empty, rows 51-55 for notes
+  wsData.push([]);
+  if (notes) {
+    wsData.push(["Övriga anteckningar:", null, notes]);
+  }
+
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   XLSX.utils.book_append_sheet(wb, ws, "Luftflödesprotokoll");
 
