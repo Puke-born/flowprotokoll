@@ -45,7 +45,7 @@ export function exportToExcel(header: HeaderData, rows: GridRow[]) {
   wsData.push([null, null, "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt", "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt"]); // row 13
 
   // Data rows 14-55
-  for (let i = 0; i < 42; i++) {
+  for (let i = 0; i < 36; i++) {
     const row = rows[i] || {};
     wsData.push([
       row.rum_nr || null,

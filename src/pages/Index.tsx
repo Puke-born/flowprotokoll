@@ -6,7 +6,7 @@ import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import { exportToExcel } from "@/lib/exportExcel";
 import { toast } from "sonner";
 
-const NUM_ROWS = 42; // rows 14–55
+const NUM_ROWS = 36; // rows 14–49
 
 const createEmptyRows = (): GridRow[] =>
   Array.from({ length: NUM_ROWS }, () => ({}));
