@@ -1,7 +1,8 @@
 import { memo, useCallback, useRef } from "react";
 
 const COLUMNS = [
-  { key: "rum", label: "Rum", colSpan: 2 },
+  { key: "rum_nr", label: "Rum" },
+  { key: "rum_namn", label: "" },
   { key: "tilluft_dontyp", label: "Dontyp" },
   { key: "tilluft_inst", label: "Pa/K-f" },
   { key: "tilluft_beraknat", label: "Beräknat" },
@@ -65,8 +66,9 @@ const AirflowGrid = memo(({ rows, onCellChange }: AirflowGridProps) => {
           </tr>
           <tr className="bg-grid-header/90 text-grid-header-foreground">
             <th className="border-r border-grid-border/30"></th>
-            <th colSpan={2} className="border-r border-grid-border/30"></th>
-            {COLUMNS.slice(1).map((col, i) => (
+            <th className="border-r border-grid-border/30"></th>
+            <th className="border-r border-grid-border/30"></th>
+            {COLUMNS.slice(2).map((col, i) => (
               <th
                 key={col.key}
                 className={`px-1 py-1.5 text-[9px] font-medium uppercase tracking-wider text-center ${
@@ -85,14 +87,13 @@ const AirflowGrid = memo(({ rows, onCellChange }: AirflowGridProps) => {
               className={`${rowIdx % 2 === 0 ? "bg-grid-cell" : "bg-grid-cell-alt"} hover:bg-primary/5 transition-colors`}
             >
               <td className="px-1 py-0 text-[10px] text-muted-foreground text-center border-r border-grid-border/40 font-mono">
-                {rowIdx + 14}
+                {rowIdx + 1}
               </td>
               {COLUMNS.map((col, colIdx) => (
                 <td
                   key={col.key}
-                  colSpan={col.colSpan}
                   className={`px-0 py-0 border-r border-grid-border/30 last:border-r-0 ${
-                    colIdx === 4 ? "border-r-2 border-grid-border/50" : ""
+                    colIdx === 5 ? "border-r-2 border-grid-border/50" : ""
                   }`}
                 >
                   <input

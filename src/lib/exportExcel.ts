@@ -13,8 +13,8 @@ interface HeaderData {
 }
 
 const COL_KEYS = [
-  "rum",
-  "rum", // col B is part of "Rum" spanning A-B
+  "rum_nr",
+  "rum_namn",
   "tilluft_dontyp",
   "tilluft_inst",
   "tilluft_beraknat",
@@ -48,8 +48,8 @@ export function exportToExcel(header: HeaderData, rows: GridRow[]) {
   for (let i = 0; i < 42; i++) {
     const row = rows[i] || {};
     wsData.push([
-      row.rum || null,
-      null,
+      row.rum_nr || null,
+      row.rum_namn || null,
       row.tilluft_dontyp || null,
       row.tilluft_inst || null,
       row.tilluft_beraknat || null,
