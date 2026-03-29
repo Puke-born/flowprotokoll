@@ -36,14 +36,6 @@ const createEmptySheet = (): Sheet => ({
 });
 
 const Index = () => {
-  const [sharedHeader, setSharedHeader] = useState({
-    kund: "",
-    anlaggning: "",
-    utfordAv: "",
-    arbNr: "",
-    datum: new Date().toISOString().slice(0, 10),
-  });
-
   const [sheets, setSheets] = useState<Sheet[]>([createEmptySheet()]);
   const [activeSheet, setActiveSheet] = useState(0);
 
@@ -51,11 +43,7 @@ const Index = () => {
   const totalPages = sheets.length;
   const sidNr = `${activeSheet + 1}/${totalPages}`;
 
-  const updateSharedHeader = useCallback((key: string) => (value: string) => {
-    setSharedHeader((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const updateSheetField = useCallback((key: "system" | "plan") => (value: string) => {
+  const updateSheetField = useCallback((key: keyof Sheet) => (value: string) => {
     setSheets((prev) => {
       const next = [...prev];
       next[activeSheet] = { ...next[activeSheet], [key]: value };
