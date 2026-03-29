@@ -1,10 +1,19 @@
-import { useState, useCallback } from "react";
-import { FileSpreadsheet, Download, Trash2, Plus, Copy } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import { exportAllSheets } from "@/lib/exportExcel";
+import { getSheetNames, importSheets } from "@/lib/importExcel";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const NUM_ROWS = 36; // rows 14–49
 
