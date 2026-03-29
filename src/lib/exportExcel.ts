@@ -1,31 +1,28 @@
 import * as XLSX from "xlsx";
 import type { GridRow } from "@/components/AirflowGrid";
 
-interface SharedHeader {
+interface Sheet {
   kund: string;
   anlaggning: string;
   utfordAv: string;
   arbNr: string;
   datum: string;
-}
-
-interface Sheet {
   system: string;
   plan: string;
   rows: GridRow[];
   notes: string;
 }
 
-function buildSheet(shared: SharedHeader, sheet: Sheet, sidNr: string): (string | number | null)[][] {
+function buildSheet(sheet: Sheet, sidNr: string): (string | number | null)[][] {
   const wsData: (string | number | null)[][] = [];
 
   wsData.push([]);
   wsData.push([null, null, null, "OVK - Luftflödesprotokoll"]);
   wsData.push([]);
-  wsData.push(["Kund:", null, shared.kund, null, null, null, null, "Plan:", null, sheet.plan]);
-  wsData.push(["Anläggning:", null, shared.anlaggning, null, null, null, null, "Sid nr:", null, sidNr]);
-  wsData.push(["System:", null, sheet.system, null, null, null, null, "Arb.nr:", null, shared.arbNr]);
-  wsData.push(["Utfört av:", null, shared.utfordAv, null, null, null, null, "Datum:", null, shared.datum]);
+  wsData.push(["Kund:", null, sheet.kund, null, null, null, null, "Plan:", null, sheet.plan]);
+  wsData.push(["Anläggning:", null, sheet.anlaggning, null, null, null, null, "Sid nr:", null, sidNr]);
+  wsData.push(["System:", null, sheet.system, null, null, null, null, "Arb.nr:", null, sheet.arbNr]);
+  wsData.push(["Utfört av:", null, sheet.utfordAv, null, null, null, null, "Datum:", null, sheet.datum]);
   wsData.push([]);
   wsData.push([null, null, "Tilluft", null, "Luftmängd", null, "Frånluft", null, "Luftmängd"]);
   wsData.push([]);
@@ -57,18 +54,18 @@ function buildSheet(shared: SharedHeader, sheet: Sheet, sidNr: string): (string 
   return wsData;
 }
 
-export function exportAllSheets(shared: SharedHeader, sheets: Sheet[]) {
+export function exportAllSheets(sheets: Sheet[]) {
   const wb = XLSX.utils.book_new();
   const total = sheets.length;
 
   sheets.forEach((sheet, i) => {
     const sidNr = `${i + 1}/${total}`;
-    const wsData = buildSheet(shared, sheet, sidNr);
+    const wsData = buildSheet(sheet, sidNr);
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const name = total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`;
     XLSX.utils.book_append_sheet(wb, ws, name);
   });
 
-  const filename = `Luftflodesprotokoll_${shared.kund || "export"}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const filename = `Luftflodesprotokoll_${sheets[0]?.kund || "export"}_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
