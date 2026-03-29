@@ -175,6 +175,12 @@ const Index = () => {
             <Plus className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Nytt blad</span>
           </Button>
+          {activeSheet > 0 && (
+            <Button variant="outline" size="sm" onClick={handleCopyData} className="gap-1 h-8">
+              <Copy className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Kopiera data</span>
+            </Button>
+          )}
           {sheets.length > 1 && (
             <Button variant="ghost" size="sm" onClick={handleRemoveSheet} className="gap-1 h-8 text-destructive hover:text-destructive">
               <Trash2 className="w-3.5 h-3.5" />
