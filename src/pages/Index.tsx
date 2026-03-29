@@ -195,6 +195,17 @@ const Index = () => {
               <Trash2 className="w-4 h-4" />
               <span className="hidden sm:inline">Rensa</span>
             </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-1.5">
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Importera Excel</span>
+            </Button>
             <Button size="sm" onClick={handleExport} className="gap-1.5">
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">Exportera Excel</span>
