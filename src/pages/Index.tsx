@@ -22,6 +22,7 @@ const createEmptyRows = (): GridRow[] =>
   Array.from({ length: NUM_ROWS }, () => ({}));
 
 interface Sheet {
+  name: string;
   kund: string;
   anlaggning: string;
   utfordAv: string;
@@ -33,7 +34,9 @@ interface Sheet {
   notes: string;
 }
 
-const createEmptySheet = (): Sheet => ({
+let sheetCounter = 1;
+const createEmptySheet = (name?: string): Sheet => ({
+  name: name || `Blad ${sheetCounter++}`,
   kund: "",
   anlaggning: "",
   utfordAv: "",
