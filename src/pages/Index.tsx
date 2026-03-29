@@ -47,6 +47,11 @@ const createEmptySheet = (): Sheet => ({
 const Index = () => {
   const [sheets, setSheets] = useState<Sheet[]>([createEmptySheet()]);
   const [activeSheet, setActiveSheet] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
+  const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
+  const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
 
   const sheet = sheets[activeSheet];
   const totalPages = sheets.length;
