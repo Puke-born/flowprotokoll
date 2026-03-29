@@ -253,9 +253,9 @@ const Index = () => {
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-4 space-y-4 pb-8">
         {/* Sheet tabs */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            {sheets.map((_, i) => (
+            {sheets.map((s, i) => (
               <button
                 key={i}
                 onClick={() => setActiveSheet(i)}
@@ -265,7 +265,7 @@ const Index = () => {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Blad {i + 1}
+                {s.name}
               </button>
             ))}
           </div>
@@ -279,11 +279,25 @@ const Index = () => {
               <span className="hidden sm:inline">Kopiera data</span>
             </Button>
           )}
+          <Button variant="outline" size="sm" onClick={handleRenameSheet} className="gap-1 h-8">
+            <Pencil className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Döp om</span>
+          </Button>
           {sheets.length > 1 && (
-            <Button variant="ghost" size="sm" onClick={handleRemoveSheet} className="gap-1 h-8 text-destructive hover:text-destructive">
-              <Trash2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Ta bort blad</span>
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={() => handleMoveSheet(-1)} disabled={activeSheet === 0} className="gap-1 h-8">
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Flytta vänster</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleMoveSheet(1)} disabled={activeSheet === sheets.length - 1} className="gap-1 h-8">
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Flytta höger</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleRemoveSheet} className="gap-1 h-8 text-destructive hover:text-destructive">
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Ta bort blad</span>
+              </Button>
+            </>
           )}
         </div>
 
