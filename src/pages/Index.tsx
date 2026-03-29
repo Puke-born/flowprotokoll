@@ -169,10 +169,40 @@ const Index = () => {
   }, [sheets]);
 
   const handleClear = useCallback(() => {
-    setSheets([createEmptySheet()]);
-    setActiveSheet(0);
-    toast.info("Formuläret har rensats");
-  }, []);
+    setSheets((prev) => {
+      const next = [...prev];
+      next[activeSheet] = { ...createEmptySheet(prev[activeSheet].name) };
+      return next;
+    });
+    toast.info("Bladet har rensats");
+  }, [activeSheet]);
+
+  const handleRenameSheet = useCallback(() => {
+    setRenameValue(sheets[activeSheet].name);
+    setRenameDialogOpen(true);
+  }, [activeSheet, sheets]);
+
+  const handleRenameConfirm = useCallback(() => {
+    if (!renameValue.trim()) return;
+    setSheets((prev) => {
+      const next = [...prev];
+      next[activeSheet] = { ...next[activeSheet], name: renameValue.trim() };
+      return next;
+    });
+    setRenameDialogOpen(false);
+    toast.success("Blad omdöpt");
+  }, [activeSheet, renameValue]);
+
+  const handleMoveSheet = useCallback((direction: -1 | 1) => {
+    const target = activeSheet + direction;
+    if (target < 0 || target >= sheets.length) return;
+    setSheets((prev) => {
+      const next = [...prev];
+      [next[activeSheet], next[target]] = [next[target], next[activeSheet]];
+      return next;
+    });
+    setActiveSheet(target);
+  }, [activeSheet, sheets.length]);
 
   const headerFields = [
     { label: "Kund", value: sheet.kund, onChange: updateSheetField("kund") },
