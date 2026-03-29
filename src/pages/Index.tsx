@@ -12,6 +12,11 @@ const createEmptyRows = (): GridRow[] =>
   Array.from({ length: NUM_ROWS }, () => ({}));
 
 interface Sheet {
+  kund: string;
+  anlaggning: string;
+  utfordAv: string;
+  arbNr: string;
+  datum: string;
   system: string;
   plan: string;
   rows: GridRow[];
@@ -19,6 +24,11 @@ interface Sheet {
 }
 
 const createEmptySheet = (): Sheet => ({
+  kund: "",
+  anlaggning: "",
+  utfordAv: "",
+  arbNr: "",
+  datum: new Date().toISOString().slice(0, 10),
   system: "",
   plan: "",
   rows: createEmptyRows(),
