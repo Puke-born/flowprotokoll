@@ -268,6 +268,32 @@ const Index = () => {
           Samtliga luftflöden i l/s
         </p>
       </main>
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Välj blad att importera</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {availableSheetNames.map((name) => (
+              <label key={name} className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={selectedSheetNames.includes(name)}
+                  onCheckedChange={() => toggleSheetSelection(name)}
+                />
+                <span className="text-sm">{name}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Avbryt
+            </Button>
+            <Button onClick={handleImportConfirm} disabled={selectedSheetNames.length === 0}>
+              Importera ({selectedSheetNames.length} blad)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
