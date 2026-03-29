@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy } from "lucide-react";
+import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
@@ -14,6 +14,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 const NUM_ROWS = 36; // rows 14–49
 
@@ -21,6 +22,7 @@ const createEmptyRows = (): GridRow[] =>
   Array.from({ length: NUM_ROWS }, () => ({}));
 
 interface Sheet {
+  name: string;
   kund: string;
   anlaggning: string;
   utfordAv: string;
@@ -32,7 +34,9 @@ interface Sheet {
   notes: string;
 }
 
-const createEmptySheet = (): Sheet => ({
+let sheetCounter = 1;
+const createEmptySheet = (name?: string): Sheet => ({
+  name: name || `Blad ${sheetCounter++}`,
   kund: "",
   anlaggning: "",
   utfordAv: "",
@@ -49,6 +53,8 @@ const Index = () => {
   const [activeSheet, setActiveSheet] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
   const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
@@ -140,7 +146,7 @@ const Index = () => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
     const imported = importSheets(importFileBuffer, selectedSheetNames);
     const newSheets: Sheet[] = imported.map((s) => ({
-      ...createEmptySheet(),
+      ...createEmptySheet(s.name),
       rows: s.rows,
       notes: s.notes,
     }));
@@ -163,10 +169,40 @@ const Index = () => {
   }, [sheets]);
 
   const handleClear = useCallback(() => {
-    setSheets([createEmptySheet()]);
-    setActiveSheet(0);
-    toast.info("Formuläret har rensats");
-  }, []);
+    setSheets((prev) => {
+      const next = [...prev];
+      next[activeSheet] = { ...createEmptySheet(prev[activeSheet].name) };
+      return next;
+    });
+    toast.info("Bladet har rensats");
+  }, [activeSheet]);
+
+  const handleRenameSheet = useCallback(() => {
+    setRenameValue(sheets[activeSheet].name);
+    setRenameDialogOpen(true);
+  }, [activeSheet, sheets]);
+
+  const handleRenameConfirm = useCallback(() => {
+    if (!renameValue.trim()) return;
+    setSheets((prev) => {
+      const next = [...prev];
+      next[activeSheet] = { ...next[activeSheet], name: renameValue.trim() };
+      return next;
+    });
+    setRenameDialogOpen(false);
+    toast.success("Blad omdöpt");
+  }, [activeSheet, renameValue]);
+
+  const handleMoveSheet = useCallback((direction: -1 | 1) => {
+    const target = activeSheet + direction;
+    if (target < 0 || target >= sheets.length) return;
+    setSheets((prev) => {
+      const next = [...prev];
+      [next[activeSheet], next[target]] = [next[target], next[activeSheet]];
+      return next;
+    });
+    setActiveSheet(target);
+  }, [activeSheet, sheets.length]);
 
   const headerFields = [
     { label: "Kund", value: sheet.kund, onChange: updateSheetField("kund") },
@@ -217,9 +253,9 @@ const Index = () => {
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-4 space-y-4 pb-8">
         {/* Sheet tabs */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            {sheets.map((_, i) => (
+            {sheets.map((s, i) => (
               <button
                 key={i}
                 onClick={() => setActiveSheet(i)}
@@ -229,7 +265,7 @@ const Index = () => {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Blad {i + 1}
+                {s.name}
               </button>
             ))}
           </div>
@@ -243,11 +279,25 @@ const Index = () => {
               <span className="hidden sm:inline">Kopiera data</span>
             </Button>
           )}
+          <Button variant="outline" size="sm" onClick={handleRenameSheet} className="gap-1 h-8">
+            <Pencil className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Döp om</span>
+          </Button>
           {sheets.length > 1 && (
-            <Button variant="ghost" size="sm" onClick={handleRemoveSheet} className="gap-1 h-8 text-destructive hover:text-destructive">
-              <Trash2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Ta bort blad</span>
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={() => handleMoveSheet(-1)} disabled={activeSheet === 0} className="gap-1 h-8">
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Flytta vänster</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleMoveSheet(1)} disabled={activeSheet === sheets.length - 1} className="gap-1 h-8">
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Flytta höger</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleRemoveSheet} className="gap-1 h-8 text-destructive hover:text-destructive">
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Ta bort blad</span>
+              </Button>
+            </>
           )}
         </div>
 
@@ -291,6 +341,23 @@ const Index = () => {
             <Button onClick={handleImportConfirm} disabled={selectedSheetNames.length === 0}>
               Importera ({selectedSheetNames.length} blad)
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Döp om blad</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            placeholder="Bladnamn"
+            onKeyDown={(e) => e.key === "Enter" && handleRenameConfirm()}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>Avbryt</Button>
+            <Button onClick={handleRenameConfirm} disabled={!renameValue.trim()}>Spara</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
