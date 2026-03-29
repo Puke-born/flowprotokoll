@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy } from "lucide-react";
+import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
