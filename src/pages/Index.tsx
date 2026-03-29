@@ -79,6 +79,26 @@ const Index = () => {
     toast.success("Nytt blad tillagt");
   }, []);
 
+  const handleCopyData = useCallback(() => {
+    if (activeSheet === 0) return;
+    const prev = sheets[activeSheet - 1];
+    setSheets((s) => {
+      const next = [...s];
+      next[activeSheet] = {
+        ...next[activeSheet],
+        kund: prev.kund,
+        anlaggning: prev.anlaggning,
+        utfordAv: prev.utfordAv,
+        arbNr: prev.arbNr,
+        datum: prev.datum,
+        system: prev.system,
+        plan: prev.plan,
+      };
+      return next;
+    });
+    toast.success("Data kopierad från föregående blad");
+  }, [activeSheet, sheets]);
+
   const handleRemoveSheet = useCallback(() => {
     if (sheets.length <= 1) return;
     setSheets((prev) => prev.filter((_, i) => i !== activeSheet));
@@ -87,26 +107,25 @@ const Index = () => {
   }, [activeSheet, sheets.length]);
 
   const handleExport = useCallback(() => {
-    exportAllSheets(sharedHeader, sheets);
+    exportAllSheets(sheets);
     toast.success("Excel-fil exporterad!");
-  }, [sharedHeader, sheets]);
+  }, [sheets]);
 
   const handleClear = useCallback(() => {
     setSheets([createEmptySheet()]);
     setActiveSheet(0);
-    setSharedHeader((prev) => ({ ...prev, kund: "", anlaggning: "", arbNr: "" }));
     toast.info("Formuläret har rensats");
   }, []);
 
   const headerFields = [
-    { label: "Kund", value: sharedHeader.kund, onChange: updateSharedHeader("kund") },
+    { label: "Kund", value: sheet.kund, onChange: updateSheetField("kund") },
     { label: "Plan", value: sheet.plan, onChange: updateSheetField("plan") },
-    { label: "Anläggning", value: sharedHeader.anlaggning, onChange: updateSharedHeader("anlaggning") },
+    { label: "Anläggning", value: sheet.anlaggning, onChange: updateSheetField("anlaggning") },
     { label: "Sid nr", value: sidNr, onChange: () => {}, readOnly: true },
     { label: "System", value: sheet.system, onChange: updateSheetField("system") },
-    { label: "Arb.nr", value: sharedHeader.arbNr, onChange: updateSharedHeader("arbNr") },
-    { label: "Utfört av", value: sharedHeader.utfordAv, onChange: updateSharedHeader("utfordAv") },
-    { label: "Datum", value: sharedHeader.datum, onChange: updateSharedHeader("datum") },
+    { label: "Arb.nr", value: sheet.arbNr, onChange: updateSheetField("arbNr") },
+    { label: "Utfört av", value: sheet.utfordAv, onChange: updateSheetField("utfordAv") },
+    { label: "Datum", value: sheet.datum, onChange: updateSheetField("datum") },
   ];
 
   return (
