@@ -120,6 +120,43 @@ const Index = () => {
     toast.info("Blad borttaget");
   }, [activeSheet, sheets.length]);
 
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const buffer = ev.target?.result as ArrayBuffer;
+      const names = getSheetNames(buffer);
+      setImportFileBuffer(buffer);
+      setAvailableSheetNames(names);
+      setSelectedSheetNames(names); // select all by default
+      setImportDialogOpen(true);
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = ""; // reset so same file can be picked again
+  }, []);
+
+  const handleImportConfirm = useCallback(() => {
+    if (!importFileBuffer || selectedSheetNames.length === 0) return;
+    const imported = importSheets(importFileBuffer, selectedSheetNames);
+    const newSheets: Sheet[] = imported.map((s) => ({
+      ...createEmptySheet(),
+      rows: s.rows,
+      notes: s.notes,
+    }));
+    setSheets(newSheets);
+    setActiveSheet(0);
+    setImportDialogOpen(false);
+    setImportFileBuffer(null);
+    toast.success(`${newSheets.length} blad importerade`);
+  }, [importFileBuffer, selectedSheetNames]);
+
+  const toggleSheetSelection = useCallback((name: string) => {
+    setSelectedSheetNames((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  }, []);
+
   const handleExport = useCallback(() => {
     exportAllSheets(sheets);
     toast.success("Excel-fil exporterad!");
