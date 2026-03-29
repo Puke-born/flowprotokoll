@@ -344,6 +344,23 @@ const Index = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Döp om blad</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            placeholder="Bladnamn"
+            onKeyDown={(e) => e.key === "Enter" && handleRenameConfirm()}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>Avbryt</Button>
+            <Button onClick={handleRenameConfirm} disabled={!renameValue.trim()}>Spara</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
