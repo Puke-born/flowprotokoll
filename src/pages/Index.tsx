@@ -146,7 +146,7 @@ const Index = () => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
     const imported = importSheets(importFileBuffer, selectedSheetNames);
     const newSheets: Sheet[] = imported.map((s) => ({
-      ...createEmptySheet(),
+      ...createEmptySheet(s.name),
       rows: s.rows,
       notes: s.notes,
     }));
