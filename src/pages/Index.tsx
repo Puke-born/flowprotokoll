@@ -1,10 +1,19 @@
-import { useState, useCallback } from "react";
-import { FileSpreadsheet, Download, Trash2, Plus, Copy } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import { exportAllSheets } from "@/lib/exportExcel";
+import { getSheetNames, importSheets } from "@/lib/importExcel";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const NUM_ROWS = 36; // rows 14–49
 
@@ -38,6 +47,11 @@ const createEmptySheet = (): Sheet => ({
 const Index = () => {
   const [sheets, setSheets] = useState<Sheet[]>([createEmptySheet()]);
   const [activeSheet, setActiveSheet] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
+  const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
+  const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
 
   const sheet = sheets[activeSheet];
   const totalPages = sheets.length;
@@ -106,6 +120,43 @@ const Index = () => {
     toast.info("Blad borttaget");
   }, [activeSheet, sheets.length]);
 
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const buffer = ev.target?.result as ArrayBuffer;
+      const names = getSheetNames(buffer);
+      setImportFileBuffer(buffer);
+      setAvailableSheetNames(names);
+      setSelectedSheetNames(names); // select all by default
+      setImportDialogOpen(true);
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = ""; // reset so same file can be picked again
+  }, []);
+
+  const handleImportConfirm = useCallback(() => {
+    if (!importFileBuffer || selectedSheetNames.length === 0) return;
+    const imported = importSheets(importFileBuffer, selectedSheetNames);
+    const newSheets: Sheet[] = imported.map((s) => ({
+      ...createEmptySheet(),
+      rows: s.rows,
+      notes: s.notes,
+    }));
+    setSheets(newSheets);
+    setActiveSheet(0);
+    setImportDialogOpen(false);
+    setImportFileBuffer(null);
+    toast.success(`${newSheets.length} blad importerade`);
+  }, [importFileBuffer, selectedSheetNames]);
+
+  const toggleSheetSelection = useCallback((name: string) => {
+    setSelectedSheetNames((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  }, []);
+
   const handleExport = useCallback(() => {
     exportAllSheets(sheets);
     toast.success("Excel-fil exporterad!");
@@ -143,6 +194,17 @@ const Index = () => {
             <Button variant="outline" size="sm" onClick={handleClear} className="gap-1.5">
               <Trash2 className="w-4 h-4" />
               <span className="hidden sm:inline">Rensa</span>
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-1.5">
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Importera Excel</span>
             </Button>
             <Button size="sm" onClick={handleExport} className="gap-1.5">
               <Download className="w-4 h-4" />
@@ -206,6 +268,32 @@ const Index = () => {
           Samtliga luftflöden i l/s
         </p>
       </main>
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Välj blad att importera</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {availableSheetNames.map((name) => (
+              <label key={name} className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={selectedSheetNames.includes(name)}
+                  onCheckedChange={() => toggleSheetSelection(name)}
+                />
+                <span className="text-sm">{name}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Avbryt
+            </Button>
+            <Button onClick={handleImportConfirm} disabled={selectedSheetNames.length === 0}>
+              Importera ({selectedSheetNames.length} blad)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
