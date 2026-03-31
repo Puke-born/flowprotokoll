@@ -93,7 +93,10 @@ const Index = () => {
   }, [activeSheet]);
 
   const handleAddSheet = useCallback(() => {
-    setSheets((prev) => [...prev, createEmptySheet()]);
+    setSheets((prev) => {
+      const newName = `Blad ${prev.length + 1}`;
+      return [...prev, createEmptySheet(newName)];
+    });
     setActiveSheet((prev) => prev + 1);
     toast.success("Nytt blad tillagt");
   }, []);
