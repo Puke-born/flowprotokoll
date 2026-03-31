@@ -255,22 +255,22 @@ const Index = () => {
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-4 space-y-4 pb-8">
         {/* Sheet tabs */}
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1 flex-wrap">
+          {sheets.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveSheet(i)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                i === activeSheet
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            {sheets.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveSheet(i)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  i === activeSheet
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {s.name}
-              </button>
-            ))}
-          </div>
           <Button variant="outline" size="sm" onClick={handleAddSheet} className="gap-1 h-8">
             <Plus className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Nytt blad</span>
@@ -287,13 +287,11 @@ const Index = () => {
           </Button>
           {sheets.length > 1 && (
             <>
-              <Button variant="outline" size="sm" onClick={() => handleMoveSheet(-1)} disabled={activeSheet === 0} className="gap-1 h-8">
+              <Button variant="outline" size="icon" onClick={() => handleMoveSheet(-1)} disabled={activeSheet === 0} className="h-8 w-8">
                 <ChevronLeft className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Flytta vänster</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleMoveSheet(1)} disabled={activeSheet === sheets.length - 1} className="gap-1 h-8">
+              <Button variant="outline" size="icon" onClick={() => handleMoveSheet(1)} disabled={activeSheet === sheets.length - 1} className="h-8 w-8">
                 <ChevronRight className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Flytta höger</span>
               </Button>
               <Button variant="ghost" size="sm" onClick={handleRemoveSheet} className="gap-1 h-8 text-destructive hover:text-destructive">
                 <Trash2 className="w-3.5 h-3.5" />
