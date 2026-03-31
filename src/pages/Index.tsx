@@ -48,7 +48,7 @@ const createEmptySheet = (name?: string): Sheet => ({
 });
 
 const Index = () => {
-  const [sheets, setSheets] = useState<Sheet[]>([createEmptySheet()]);
+  const [sheets, setSheets] = useState<Sheet[]>([createEmptySheet("Blad 1")]);
   const [activeSheet, setActiveSheet] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
