@@ -34,9 +34,8 @@ interface Sheet {
   notes: string;
 }
 
-let sheetCounter = 1;
 const createEmptySheet = (name?: string): Sheet => ({
-  name: name || `Blad ${sheetCounter++}`,
+  name: name || "Blad",
   kund: "",
   anlaggning: "",
   utfordAv: "",
