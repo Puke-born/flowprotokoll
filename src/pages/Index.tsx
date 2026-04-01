@@ -80,6 +80,18 @@ const Index = () => {
         next[activeSheet] = { ...next[activeSheet], rows };
         return next;
       });
+      // Clear imported flag for this cell
+      setImportedCellsMap((prev) => {
+        const sheetCells = prev.get(activeSheet);
+        if (!sheetCells?.[rowIndex]?.has(colKey)) return prev;
+        const next = new Map(prev);
+        const rowSets = [...sheetCells];
+        const newSet = new Set(rowSets[rowIndex]);
+        newSet.delete(colKey);
+        rowSets[rowIndex] = newSet;
+        next.set(activeSheet, rowSets);
+        return next;
+      });
     },
     [activeSheet]
   );
