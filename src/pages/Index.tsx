@@ -165,6 +165,19 @@ const Index = () => {
       rows: s.rows,
       notes: s.notes,
     }));
+    // Build imported cells map
+    const newImportedMap = new Map<number, Set<string>[]>();
+    imported.forEach((s, sheetIdx) => {
+      const rowSets: Set<string>[] = s.rows.map((row) => {
+        const keys = new Set<string>();
+        for (const [k, v] of Object.entries(row)) {
+          if (v) keys.add(k);
+        }
+        return keys;
+      });
+      newImportedMap.set(sheetIdx, rowSets);
+    });
+    setImportedCellsMap(newImportedMap);
     setSheets(newSheets);
     setActiveSheet(0);
     setImportDialogOpen(false);
