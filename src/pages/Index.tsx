@@ -275,30 +275,24 @@ const Index = () => {
             <Plus className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Nytt blad</span>
           </Button>
-          {activeSheet > 0 && (
-            <Button variant="outline" size="sm" onClick={handleCopyData} className="gap-1 h-8">
-              <Copy className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Kopiera data</span>
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={handleCopyData} disabled={activeSheet === 0} className="gap-1 h-8">
+            <Copy className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Kopiera data</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={handleRenameSheet} className="gap-1 h-8">
             <Pencil className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Döp om</span>
           </Button>
-          {sheets.length > 1 && (
-            <>
-              <Button variant="outline" size="icon" onClick={() => handleMoveSheet(-1)} disabled={activeSheet === 0} className="h-8 w-8">
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => handleMoveSheet(1)} disabled={activeSheet === sheets.length - 1} className="h-8 w-8">
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleRemoveSheet} className="gap-1 h-8 text-destructive hover:text-destructive">
-                <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Ta bort blad</span>
-              </Button>
-            </>
-          )}
+          <Button variant="outline" size="icon" onClick={() => handleMoveSheet(-1)} disabled={activeSheet === 0} className="h-8 w-8">
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => handleMoveSheet(1)} disabled={activeSheet === sheets.length - 1} className="h-8 w-8">
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleRemoveSheet} disabled={sheets.length <= 1} className="gap-1 h-8 text-destructive hover:text-destructive">
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Ta bort blad</span>
+          </Button>
         </div>
 
         <ProtocolHeader fields={headerFields} />
