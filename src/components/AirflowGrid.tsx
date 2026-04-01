@@ -19,6 +19,7 @@ export interface GridRow {
 
 interface AirflowGridProps {
   rows: GridRow[];
+  importedCells?: Set<string>[];
   onCellChange: (rowIndex: number, colKey: string, value: string) => void;
 }
 
