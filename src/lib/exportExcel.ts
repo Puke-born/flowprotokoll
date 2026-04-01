@@ -62,10 +62,12 @@ export function exportAllSheets(sheets: Sheet[]) {
     const sidNr = `${i + 1}/${total}`;
     const wsData = buildSheet(sheet, sidNr);
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    const name = total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`;
-    XLSX.utils.book_append_sheet(wb, ws, name);
+    const name = sheet.name || (total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`);
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
   });
 
-  const filename = `Luftflodesprotokoll_${sheets[0]?.kund || "export"}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const anlaggning = sheets[0]?.anlaggning?.replace(/[/\\:*?"<>|]/g, "").trim() || "export";
+  const datum = sheets[0]?.datum || new Date().toISOString().slice(0, 10);
+  const filename = `LFP ${anlaggning} ${datum}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
