@@ -64,9 +64,10 @@ const Index = () => {
   const sidNr = `${activeSheet + 1}/${totalPages}`;
 
   const updateSheetField = useCallback((key: keyof Sheet) => (value: string) => {
+    const sanitized = key === "anlaggning" ? value.replace(/[/\\:*?"<>|]/g, "") : value;
     setSheets((prev) => {
       const next = [...prev];
-      next[activeSheet] = { ...next[activeSheet], [key]: value };
+      next[activeSheet] = { ...next[activeSheet], [key]: sanitized };
       return next;
     });
   }, [activeSheet]);
