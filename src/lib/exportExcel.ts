@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import type { GridRow } from "@/components/AirflowGrid";
 
 interface Sheet {
+  name: string;
   kund: string;
   anlaggning: string;
   utfordAv: string;
