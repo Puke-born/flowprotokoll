@@ -15,6 +15,7 @@ const COLUMNS = [
 
 export interface GridRow {
   [key: string]: string;
+  _imported?: Set<string>;
 }
 
 interface AirflowGridProps {
