@@ -23,7 +23,7 @@ interface AirflowGridProps {
   onCellChange: (rowIndex: number, colKey: string, value: string) => void;
 }
 
-const AirflowGrid = memo(({ rows, onCellChange }: AirflowGridProps) => {
+const AirflowGrid = memo(({ rows, importedCells, onCellChange }: AirflowGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = useCallback(
