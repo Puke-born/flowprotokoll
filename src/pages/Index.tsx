@@ -322,7 +322,7 @@ const Index = () => {
         </div>
 
         <ProtocolHeader fields={headerFields} />
-        <AirflowGrid rows={sheet.rows} onCellChange={handleCellChange} />
+        <AirflowGrid rows={sheet.rows} importedCells={importedCellsMap.get(activeSheet)} onCellChange={handleCellChange} />
         <div className="rounded-lg border border-grid-border shadow-sm overflow-hidden">
           <div className="bg-grid-header px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Övriga anteckningar</span>
