@@ -50,6 +50,7 @@ const createEmptySheet = (name?: string): Sheet => ({
 const Index = () => {
   const [sheets, setSheets] = useState<Sheet[]>([createEmptySheet("Blad 1")]);
   const [activeSheet, setActiveSheet] = useState(0);
+  const [importedCellsMap, setImportedCellsMap] = useState<Map<number, Set<string>[]>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -77,6 +78,18 @@ const Index = () => {
         const rows = [...next[activeSheet].rows];
         rows[rowIndex] = { ...rows[rowIndex], [colKey]: value };
         next[activeSheet] = { ...next[activeSheet], rows };
+        return next;
+      });
+      // Clear imported flag for this cell
+      setImportedCellsMap((prev) => {
+        const sheetCells = prev.get(activeSheet);
+        if (!sheetCells?.[rowIndex]?.has(colKey)) return prev;
+        const next = new Map(prev);
+        const rowSets = [...sheetCells];
+        const newSet = new Set(rowSets[rowIndex]);
+        newSet.delete(colKey);
+        rowSets[rowIndex] = newSet;
+        next.set(activeSheet, rowSets);
         return next;
       });
     },
@@ -152,6 +165,19 @@ const Index = () => {
       rows: s.rows,
       notes: s.notes,
     }));
+    // Build imported cells map
+    const newImportedMap = new Map<number, Set<string>[]>();
+    imported.forEach((s, sheetIdx) => {
+      const rowSets: Set<string>[] = s.rows.map((row) => {
+        const keys = new Set<string>();
+        for (const [k, v] of Object.entries(row)) {
+          if (v) keys.add(k);
+        }
+        return keys;
+      });
+      newImportedMap.set(sheetIdx, rowSets);
+    });
+    setImportedCellsMap(newImportedMap);
     setSheets(newSheets);
     setActiveSheet(0);
     setImportDialogOpen(false);
@@ -174,6 +200,11 @@ const Index = () => {
     setSheets((prev) => {
       const next = [...prev];
       next[activeSheet] = { ...createEmptySheet(prev[activeSheet].name) };
+      return next;
+    });
+    setImportedCellsMap((prev) => {
+      const next = new Map(prev);
+      next.delete(activeSheet);
       return next;
     });
     toast.info("Bladet har rensats");
@@ -296,7 +327,7 @@ const Index = () => {
         </div>
 
         <ProtocolHeader fields={headerFields} />
-        <AirflowGrid rows={sheet.rows} onCellChange={handleCellChange} />
+        <AirflowGrid rows={sheet.rows} importedCells={importedCellsMap.get(activeSheet)} onCellChange={handleCellChange} />
         <div className="rounded-lg border border-grid-border shadow-sm overflow-hidden">
           <div className="bg-grid-header px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Övriga anteckningar</span>
