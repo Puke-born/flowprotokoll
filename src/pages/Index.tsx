@@ -202,6 +202,11 @@ const Index = () => {
       next[activeSheet] = { ...createEmptySheet(prev[activeSheet].name) };
       return next;
     });
+    setImportedCellsMap((prev) => {
+      const next = new Map(prev);
+      next.delete(activeSheet);
+      return next;
+    });
     toast.info("Bladet har rensats");
   }, [activeSheet]);
 
