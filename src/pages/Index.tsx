@@ -79,6 +79,11 @@ const Index = () => {
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
 
+  // Persist to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+  }, [sheets, activeSheet]);
+
   const sheet = sheets[activeSheet];
   const totalPages = sheets.length;
   const sidNr = `${activeSheet + 1}/${totalPages}`;
