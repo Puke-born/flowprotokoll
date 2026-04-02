@@ -392,9 +392,6 @@ const Index = () => {
             className="w-full min-h-[100px] px-3 py-2 text-sm font-mono bg-grid-cell text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
           />
         </div>
-        <p className="text-[11px] text-muted-foreground text-right">
-          Samtliga luftflöden i l/s
-        </p>
       </main>
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent>
