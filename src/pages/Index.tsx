@@ -293,6 +293,10 @@ const Index = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleNewProtocol} className="gap-1.5">
+              <FilePlus2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Nytt protokoll</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleClear} className="gap-1.5">
               <Trash2 className="w-4 h-4" />
               <span className="hidden sm:inline">Rensa</span>
