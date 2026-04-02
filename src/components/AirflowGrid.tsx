@@ -101,7 +101,7 @@ const AirflowGrid = memo(({ rows, importedCells, onCellChange }: AirflowGridProp
                     data-row={rowIdx}
                     data-col={colIdx}
                     type="text"
-                    inputMode={colIdx >= 2 ? "decimal" : "text"}
+                    inputMode="text"
                     value={row[col.key] || ""}
                     onChange={(e) => onCellChange(rowIdx, col.key, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, rowIdx, colIdx)}
