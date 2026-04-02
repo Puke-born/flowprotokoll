@@ -161,7 +161,23 @@ const Index = () => {
   }, [activeSheet, sheets]);
 
   const handleRemoveSheet = useCallback(() => {
-    if (sheets.length <= 1) return;
+    if (sheets.length <= 1) {
+      // Last sheet — reset to clean state
+      setSheets([createEmptySheet("Blad 1")]);
+      setActiveSheet(0);
+      setImportedCellsMap(new Map());
+      toast.info("Blad borttaget");
+      return;
+    }
+    // Clear imported cells for removed sheet and re-index
+    setImportedCellsMap((prev) => {
+      const next = new Map<number, Set<string>[]>();
+      prev.forEach((v, k) => {
+        if (k < activeSheet) next.set(k, v);
+        else if (k > activeSheet) next.set(k - 1, v);
+      });
+      return next;
+    });
     setSheets((prev) => prev.filter((_, i) => i !== activeSheet));
     setActiveSheet((prev) => Math.min(prev, sheets.length - 2));
     toast.info("Blad borttaget");
