@@ -47,9 +47,29 @@ const createEmptySheet = (name?: string): Sheet => ({
   notes: "",
 });
 
+const STORAGE_KEY = "lfp-protocol-data";
+
+const loadFromStorage = (): { sheets: Sheet[]; activeSheet: number } | null => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (Array.isArray(data.sheets) && data.sheets.length > 0) {
+      return { sheets: data.sheets, activeSheet: data.activeSheet ?? 0 };
+    }
+  } catch { /* ignore */ }
+  return null;
+};
+
 const Index = () => {
-  const [sheets, setSheets] = useState<Sheet[]>([createEmptySheet("Blad 1")]);
-  const [activeSheet, setActiveSheet] = useState(0);
+  const [sheets, setSheets] = useState<Sheet[]>(() => {
+    const saved = loadFromStorage();
+    return saved ? saved.sheets : [createEmptySheet("Blad 1")];
+  });
+  const [activeSheet, setActiveSheet] = useState(() => {
+    const saved = loadFromStorage();
+    return saved ? Math.min(saved.activeSheet, (saved.sheets?.length ?? 1) - 1) : 0;
+  });
   const [importedCellsMap, setImportedCellsMap] = useState<Map<number, Set<string>[]>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
