@@ -236,6 +236,13 @@ const Index = () => {
     toast.info("Bladet har rensats");
   }, [activeSheet]);
 
+  const handleNewProtocol = useCallback(() => {
+    setSheets([createEmptySheet("Blad 1")]);
+    setActiveSheet(0);
+    setImportedCellsMap(new Map());
+    toast.success("Nytt protokoll skapat");
+  }, []);
+
   const handleRenameSheet = useCallback(() => {
     setRenameValue(sheets[activeSheet].name);
     setRenameDialogOpen(true);
