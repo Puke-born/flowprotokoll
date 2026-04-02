@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from "react";
-import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
@@ -47,9 +47,29 @@ const createEmptySheet = (name?: string): Sheet => ({
   notes: "",
 });
 
+const STORAGE_KEY = "lfp-protocol-data";
+
+const loadFromStorage = (): { sheets: Sheet[]; activeSheet: number } | null => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (Array.isArray(data.sheets) && data.sheets.length > 0) {
+      return { sheets: data.sheets, activeSheet: data.activeSheet ?? 0 };
+    }
+  } catch { /* ignore */ }
+  return null;
+};
+
 const Index = () => {
-  const [sheets, setSheets] = useState<Sheet[]>([createEmptySheet("Blad 1")]);
-  const [activeSheet, setActiveSheet] = useState(0);
+  const [sheets, setSheets] = useState<Sheet[]>(() => {
+    const saved = loadFromStorage();
+    return saved ? saved.sheets : [createEmptySheet("Blad 1")];
+  });
+  const [activeSheet, setActiveSheet] = useState(() => {
+    const saved = loadFromStorage();
+    return saved ? Math.min(saved.activeSheet, (saved.sheets?.length ?? 1) - 1) : 0;
+  });
   const [importedCellsMap, setImportedCellsMap] = useState<Map<number, Set<string>[]>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -58,6 +78,11 @@ const Index = () => {
   const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
+
+  // Persist to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+  }, [sheets, activeSheet]);
 
   const sheet = sheets[activeSheet];
   const totalPages = sheets.length;
@@ -211,6 +236,13 @@ const Index = () => {
     toast.info("Bladet har rensats");
   }, [activeSheet]);
 
+  const handleNewProtocol = useCallback(() => {
+    setSheets([createEmptySheet("Blad 1")]);
+    setActiveSheet(0);
+    setImportedCellsMap(new Map());
+    toast.success("Nytt protokoll skapat");
+  }, []);
+
   const handleRenameSheet = useCallback(() => {
     setRenameValue(sheets[activeSheet].name);
     setRenameDialogOpen(true);
@@ -261,6 +293,10 @@ const Index = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleNewProtocol} className="gap-1.5">
+              <FilePlus2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Nytt protokoll</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleClear} className="gap-1.5">
               <Trash2 className="w-4 h-4" />
               <span className="hidden sm:inline">Rensa</span>
