@@ -1,4 +1,22 @@
-import { memo, useCallback, useRef } from "react";
+import { memo, useCallback, useRef, useState } from "react";
+
+const EVAL_COLUMNS = new Set(["tilluft_uppmat", "franluft_uppmat"]);
+
+function tryEvalMath(expr: string): string | null {
+  // Only evaluate if it contains an operator
+  if (!/[+\-*/]/.test(expr)) return null;
+  // Only allow digits, operators, dots, spaces, parens
+  if (!/^[\d+\-*/.()\s]+$/.test(expr.trim())) return null;
+  try {
+    const result = new Function(`"use strict"; return (${expr.trim()})`)();
+    if (typeof result === "number" && isFinite(result)) {
+      return String(Math.round(result * 100) / 100);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 const COLUMNS = [
   { key: "rum_nr", label: "Rum" },
