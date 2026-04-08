@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil, FilePlus2 } from "lucide-react";
+import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil, FilePlus2, Save, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
@@ -101,6 +101,7 @@ const Index = () => {
     }
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const projectInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -266,10 +267,53 @@ const Index = () => {
     );
   }, []);
 
+  const handleSaveProject = useCallback(() => {
+    const projectData = {
+      sheets,
+      activeSheet,
+      importedCells: serializeImportedCells(importedCellsMap),
+    };
+    const blob = new Blob([JSON.stringify(projectData)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const anlaggning = sheets[0]?.anlaggning?.trim();
+    const fileName = anlaggning ? `${anlaggning}.lfp.json` : "projekt.lfp.json";
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Projekt sparat!");
+  }, [sheets, activeSheet, importedCellsMap]);
+
+  const handleLoadProject = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        if (Array.isArray(data.sheets) && data.sheets.length > 0) {
+          setSheets(data.sheets);
+          setActiveSheet(data.activeSheet ?? 0);
+          setImportedCellsMap(
+            data.importedCells ? deserializeImportedCells(data.importedCells) : new Map()
+          );
+          toast.success("Projekt laddat!");
+        } else {
+          toast.error("Ogiltig projektfil");
+        }
+      } catch {
+        toast.error("Kunde inte läsa projektfilen");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }, []);
+
   const handleExport = useCallback(() => {
     exportAllSheets(sheets);
     setImportedCellsMap(new Map());
-    toast.success("Excel-fil exporterad!");
+    toast.success("Excel-fil exporterad! Projektsparning rensad.");
   }, [sheets]);
 
   const handleClear = useCallback(() => {
@@ -342,7 +386,22 @@ const Index = () => {
               Luftflödesprotokoll
             </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleSaveProject} className="gap-1.5">
+              <Save className="w-4 h-4" />
+              <span className="hidden sm:inline">Spara projekt</span>
+            </Button>
+            <input
+              ref={projectInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={handleLoadProject}
+            />
+            <Button variant="outline" size="sm" onClick={() => projectInputRef.current?.click()} className="gap-1.5">
+              <FolderOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">Öppna projekt</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleNewProtocol} className="gap-1.5">
               <FilePlus2 className="w-4 h-4" />
               <span className="hidden sm:inline">Nytt protokoll</span>
