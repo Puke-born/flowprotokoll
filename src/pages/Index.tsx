@@ -48,6 +48,28 @@ const createEmptySheet = (name?: string): Sheet => ({
 });
 
 const STORAGE_KEY = "lfp-protocol-data";
+const IMPORTED_CELLS_KEY = "lfp-imported-cells";
+
+const serializeImportedCells = (map: Map<number, Set<string>[]>): string => {
+  const obj: Record<string, string[][]> = {};
+  map.forEach((sets, key) => {
+    obj[key] = sets.map((s) => Array.from(s));
+  });
+  return JSON.stringify(obj);
+};
+
+const deserializeImportedCells = (raw: string): Map<number, Set<string>[]> => {
+  try {
+    const obj = JSON.parse(raw) as Record<string, string[][]>;
+    const map = new Map<number, Set<string>[]>();
+    Object.entries(obj).forEach(([key, arrays]) => {
+      map.set(Number(key), arrays.map((a) => new Set(a)));
+    });
+    return map;
+  } catch {
+    return new Map();
+  }
+};
 
 const loadFromStorage = (): { sheets: Sheet[]; activeSheet: number } | null => {
   try {
@@ -70,7 +92,14 @@ const Index = () => {
     const saved = loadFromStorage();
     return saved ? Math.min(saved.activeSheet, (saved.sheets?.length ?? 1) - 1) : 0;
   });
-  const [importedCellsMap, setImportedCellsMap] = useState<Map<number, Set<string>[]>>(new Map());
+  const [importedCellsMap, setImportedCellsMap] = useState<Map<number, Set<string>[]>>(() => {
+    try {
+      const raw = localStorage.getItem(IMPORTED_CELLS_KEY);
+      return raw ? deserializeImportedCells(raw) : new Map();
+    } catch {
+      return new Map();
+    }
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -83,6 +112,10 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
   }, [sheets, activeSheet]);
+
+  useEffect(() => {
+    localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+  }, [importedCellsMap]);
 
   const sheet = sheets[activeSheet];
   const totalPages = sheets.length;
@@ -235,6 +268,7 @@ const Index = () => {
 
   const handleExport = useCallback(() => {
     exportAllSheets(sheets);
+    setImportedCellsMap(new Map());
     toast.success("Excel-fil exporterad!");
   }, [sheets]);
 
