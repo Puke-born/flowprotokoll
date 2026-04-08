@@ -92,7 +92,14 @@ const Index = () => {
     const saved = loadFromStorage();
     return saved ? Math.min(saved.activeSheet, (saved.sheets?.length ?? 1) - 1) : 0;
   });
-  const [importedCellsMap, setImportedCellsMap] = useState<Map<number, Set<string>[]>>(new Map());
+  const [importedCellsMap, setImportedCellsMap] = useState<Map<number, Set<string>[]>>(() => {
+    try {
+      const raw = localStorage.getItem(IMPORTED_CELLS_KEY);
+      return raw ? deserializeImportedCells(raw) : new Map();
+    } catch {
+      return new Map();
+    }
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
