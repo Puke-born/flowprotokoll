@@ -386,7 +386,22 @@ const Index = () => {
               Luftflödesprotokoll
             </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleSaveProject} className="gap-1.5">
+              <Save className="w-4 h-4" />
+              <span className="hidden sm:inline">Spara projekt</span>
+            </Button>
+            <input
+              ref={projectInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={handleLoadProject}
+            />
+            <Button variant="outline" size="sm" onClick={() => projectInputRef.current?.click()} className="gap-1.5">
+              <FolderOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">Öppna projekt</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleNewProtocol} className="gap-1.5">
               <FilePlus2 className="w-4 h-4" />
               <span className="hidden sm:inline">Nytt protokoll</span>
