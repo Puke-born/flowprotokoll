@@ -1,4 +1,22 @@
-import { memo, useCallback, useRef } from "react";
+import { memo, useCallback, useRef, useState } from "react";
+
+const EVAL_COLUMNS = new Set(["tilluft_uppmat", "franluft_uppmat"]);
+
+function tryEvalMath(expr: string): string | null {
+  // Only evaluate if it contains an operator
+  if (!/[+\-*/]/.test(expr)) return null;
+  // Only allow digits, operators, dots, spaces, parens
+  if (!/^[\d+\-*/.()\s]+$/.test(expr.trim())) return null;
+  try {
+    const result = new Function(`"use strict"; return (${expr.trim()})`)();
+    if (typeof result === "number" && isFinite(result)) {
+      return String(Math.round(result * 100) / 100);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 const COLUMNS = [
   { key: "rum_nr", label: "Rum" },
@@ -105,6 +123,15 @@ const AirflowGrid = memo(({ rows, importedCells, onCellChange }: AirflowGridProp
                     value={row[col.key] || ""}
                     onChange={(e) => onCellChange(rowIdx, col.key, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, rowIdx, colIdx)}
+                    onBlur={() => {
+                      if (EVAL_COLUMNS.has(col.key)) {
+                        const val = row[col.key] || "";
+                        const result = tryEvalMath(val);
+                        if (result !== null) {
+                          onCellChange(rowIdx, col.key, result);
+                        }
+                      }
+                    }}
                     className={`w-full h-10 px-2 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none ${
                       importedCells?.[rowIdx]?.has(col.key) ? "bg-yellow-100 dark:bg-yellow-900/30" : ""
                     }`}
