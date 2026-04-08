@@ -113,6 +113,10 @@ const Index = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
   }, [sheets, activeSheet]);
 
+  useEffect(() => {
+    localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+  }, [importedCellsMap]);
+
   const sheet = sheets[activeSheet];
   const totalPages = sheets.length;
   const sidNr = `${activeSheet + 1}/${totalPages}`;
