@@ -268,6 +268,7 @@ const Index = () => {
 
   const handleExport = useCallback(() => {
     exportAllSheets(sheets);
+    setImportedCellsMap(new Map());
     toast.success("Excel-fil exporterad!");
   }, [sheets]);
 
