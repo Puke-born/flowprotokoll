@@ -409,7 +409,7 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={handleNewProtocol} className="gap-1.5">
               <FilePlus2 className="w-4 h-4" />
-              Nytt protokoll
+              Nytt
             </Button>
             <Button variant="outline" size="sm" onClick={handleClear} className="gap-1.5">
               <Trash2 className="w-4 h-4" />
@@ -417,11 +417,11 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-1.5">
               <Download className="w-4 h-4" />
-              Importera Excel
+              Import
             </Button>
             <Button size="sm" onClick={handleExport} className="gap-1.5">
               <Upload className="w-4 h-4" />
-              Exportera Excel
+              Export
             </Button>
           </div>
 
@@ -429,7 +429,7 @@ const Index = () => {
           <div className="flex md:hidden items-center gap-2">
             <Button size="sm" onClick={handleExport} className="gap-1.5">
               <Upload className="w-4 h-4" />
-              Exportera
+              Export
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -449,12 +449,12 @@ const Index = () => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                   <Download className="w-4 h-4 mr-2" />
-                  Importera Excel
+                  Import
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleNewProtocol}>
                   <FilePlus2 className="w-4 h-4 mr-2" />
-                  Nytt protokoll
+                  Nytt
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleClear} className="text-destructive">
                   <Trash2 className="w-4 h-4 mr-2" />
