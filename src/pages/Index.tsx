@@ -386,45 +386,75 @@ const Index = () => {
               Luftflödesprotokoll
             </h1>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Hidden file inputs */}
+          <input ref={projectInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadProject} />
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileSelect} />
+
+          {/* Desktop buttons */}
+          <div className="hidden md:flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleSaveProject} className="gap-1.5">
               <Save className="w-4 h-4" />
-              <span className="hidden sm:inline"></span>
+              Spara
             </Button>
-            <input
-              ref={projectInputRef}
-              type="file"
-              accept=".json"
-              className="hidden"
-              onChange={handleLoadProject}
-            />
             <Button variant="outline" size="sm" onClick={() => projectInputRef.current?.click()} className="gap-1.5">
               <FolderOpen className="w-4 h-4" />
-              <span className="hidden sm:inline"></span>
+              Öppna
             </Button>
             <Button variant="outline" size="sm" onClick={handleNewProtocol} className="gap-1.5">
               <FilePlus2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Nytt protokoll</span>
+              Nytt protokoll
             </Button>
             <Button variant="outline" size="sm" onClick={handleClear} className="gap-1.5">
               <Trash2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Rensa</span>
+              Rensa
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-1.5">
               <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Importera Excel</span>
+              Importera Excel
             </Button>
             <Button size="sm" onClick={handleExport} className="gap-1.5">
               <Upload className="w-4 h-4" />
-              <span className="hidden sm:inline">Exportera Excel</span>
+              Exportera Excel
             </Button>
+          </div>
+
+          {/* Mobile: Export button + dropdown menu */}
+          <div className="flex md:hidden items-center gap-2">
+            <Button size="sm" onClick={handleExport} className="gap-1.5">
+              <Upload className="w-4 h-4" />
+              Exportera
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleSaveProject}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Spara projekt
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => projectInputRef.current?.click()}>
+                  <FolderOpen className="w-4 h-4 mr-2" />
+                  Öppna projekt
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Importera Excel
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleNewProtocol}>
+                  <FilePlus2 className="w-4 h-4 mr-2" />
+                  Nytt protokoll
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleClear} className="text-destructive">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Rensa
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
