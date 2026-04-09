@@ -390,7 +390,7 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <AirVent className="w-6 h-6 text-primary" />
             <h1 className="text-lg font-bold text-foreground tracking-tight">
-              Luftflödesprotokoll
+              LFP
             </h1>
           </div>
           {/* Hidden file inputs */}
