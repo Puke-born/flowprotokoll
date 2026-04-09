@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { FileSpreadsheet, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil, FilePlus2, Save, FolderOpen } from "lucide-react";
+import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil, FilePlus2, Save, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
@@ -381,7 +381,7 @@ const Index = () => {
       <header className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-primary" />
+            <AirVent className="w-6 h-6 text-primary" />
             <h1 className="text-lg font-bold text-foreground tracking-tight">
               Luftflödesprotokoll
             </h1>
@@ -389,7 +389,7 @@ const Index = () => {
           <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleSaveProject} className="gap-1.5">
               <Save className="w-4 h-4" />
-              <span className="hidden sm:inline">Spara projekt</span>
+              <span className="hidden sm:inline"></span>
             </Button>
             <input
               ref={projectInputRef}
@@ -400,7 +400,7 @@ const Index = () => {
             />
             <Button variant="outline" size="sm" onClick={() => projectInputRef.current?.click()} className="gap-1.5">
               <FolderOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">Öppna projekt</span>
+              <span className="hidden sm:inline"></span>
             </Button>
             <Button variant="outline" size="sm" onClick={handleNewProtocol} className="gap-1.5">
               <FilePlus2 className="w-4 h-4" />
