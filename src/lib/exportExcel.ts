@@ -49,7 +49,7 @@ function buildSheet(sheet: Sheet, sidNr: string): (string | number | null)[][] {
 
   wsData.push([]);
   if (sheet.notes) {
-    wsData.push(["Övriga anteckningar:", null, sheet.notes]);
+    wsData.push([sheet.notes]);
   }
 
   return wsData;
