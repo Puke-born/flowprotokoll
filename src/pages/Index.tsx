@@ -274,13 +274,40 @@ const Index = () => {
     );
   }, []);
 
-  const handleSaveProject = useCallback(() => {
+  const fileHandleRef = useRef<FileSystemFileHandle | null>(null);
+
+  const handleSaveProject = useCallback(async () => {
     const projectData = {
       sheets,
       activeSheet,
       importedCells: serializeImportedCells(importedCellsMap),
     };
-    const blob = new Blob([JSON.stringify(projectData)], { type: "application/json" });
+    const jsonString = JSON.stringify(projectData);
+
+    // Try to reuse existing file handle or pick a new one via File System Access API
+    if ('showSaveFilePicker' in window) {
+      try {
+        if (!fileHandleRef.current) {
+          const anlaggning = sheets[0]?.anlaggning?.trim();
+          const fileName = anlaggning ? `${anlaggning}.lfp.json` : "projekt.lfp.json";
+          fileHandleRef.current = await (window as any).showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{ description: 'LFP Projekt', accept: { 'application/json': ['.json'] } }],
+          });
+        }
+        const writable = await fileHandleRef.current!.createWritable();
+        await writable.write(jsonString);
+        await writable.close();
+        toast.success("Projekt sparat!");
+        return;
+      } catch (err: any) {
+        if (err.name === 'AbortError') return; // User cancelled
+        // Fall through to legacy download
+      }
+    }
+
+    // Fallback for Firefox/Safari
+    const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const anlaggning = sheets[0]?.anlaggning?.trim();
