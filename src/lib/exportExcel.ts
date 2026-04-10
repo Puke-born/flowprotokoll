@@ -14,6 +14,16 @@ interface Sheet {
   notes: string;
 }
 
+const COL_KEYS = [
+  "rum_nr", "rum_namn", "tilluft_dontyp", "tilluft_inst",
+  "tilluft_beraknat", "tilluft_uppmat", "franluft_dontyp",
+  "franluft_inst", "franluft_beraknat", "franluft_uppmat",
+];
+
+function hexToXlsxRgb(hex: string): string {
+  return hex.replace("#", "").toUpperCase();
+}
+
 function buildSheet(sheet: Sheet, sidNr: string): (string | number | null)[][] {
   const wsData: (string | number | null)[][] = [];
 
@@ -55,14 +65,33 @@ function buildSheet(sheet: Sheet, sidNr: string): (string | number | null)[][] {
   return wsData;
 }
 
-export function exportAllSheets(sheets: Sheet[]) {
+export function exportAllSheets(sheets: Sheet[], cellColorsPerSheet?: Record<string, Record<string, string>>[]) {
   const wb = XLSX.utils.book_new();
   const total = sheets.length;
+  const DATA_START_ROW = 13; // 0-indexed row where grid data starts (row 14 in the sheet)
 
   sheets.forEach((sheet, i) => {
     const sidNr = `${i + 1}/${total}`;
     const wsData = buildSheet(sheet, sidNr);
     const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Apply cell colors
+    const colors = cellColorsPerSheet?.[i];
+    if (colors) {
+      Object.entries(colors).forEach(([rowIdxStr, cols]) => {
+        const rowIdx = Number(rowIdxStr);
+        Object.entries(cols).forEach(([colKey, hex]) => {
+          const colIdx = COL_KEYS.indexOf(colKey);
+          if (colIdx === -1) return;
+          const cellRef = XLSX.utils.encode_cell({ r: DATA_START_ROW + rowIdx, c: colIdx });
+          if (!ws[cellRef]) ws[cellRef] = { t: "s", v: "" };
+          ws[cellRef].s = {
+            fill: { patternType: "solid", fgColor: { rgb: hexToXlsxRgb(hex) } },
+          };
+        });
+      });
+    }
+
     const name = sheet.name || (total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`);
     XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
   });
