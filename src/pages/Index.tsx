@@ -466,6 +466,15 @@ const Index = () => {
       });
       return next;
     });
+    setCellColorsMap((prev) => {
+      const next = new Map<number, Record<string, Record<string, string>>>();
+      prev.forEach((v, k) => {
+        if (k === activeSheet) next.set(target, v);
+        else if (k === target) next.set(activeSheet, v);
+        else next.set(k, v);
+      });
+      return next;
+    });
     setActiveSheet(target);
   }, [activeSheet, sheets.length]);
 
