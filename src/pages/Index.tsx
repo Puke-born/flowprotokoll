@@ -57,6 +57,17 @@ const createEmptySheet = (name?: string): Sheet => ({
 
 const STORAGE_KEY = "lfp-protocol-data";
 const IMPORTED_CELLS_KEY = "lfp-imported-cells";
+const CELL_COLORS_KEY = "lfp-cell-colors";
+const LAST_COLOR_KEY = "lfp-last-color";
+
+const COLOR_PALETTE = [
+  { hex: "transparent", label: "Ingen" },
+  { hex: "#fef9c3", label: "Gul" },
+  { hex: "#bbf7d0", label: "Grön" },
+  { hex: "#bfdbfe", label: "Blå" },
+  { hex: "#fecaca", label: "Röd" },
+  { hex: "#fed7aa", label: "Orange" },
+];
 
 const serializeImportedCells = (map: Map<number, Set<string>[]>): string => {
   const obj: Record<string, string[][]> = {};
