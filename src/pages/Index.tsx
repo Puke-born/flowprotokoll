@@ -395,6 +395,15 @@ const Index = () => {
       [next[activeSheet], next[target]] = [next[target], next[activeSheet]];
       return next;
     });
+    setImportedCellsMap((prev) => {
+      const next = new Map<number, Set<string>[]>();
+      prev.forEach((v, k) => {
+        if (k === activeSheet) next.set(target, v);
+        else if (k === target) next.set(activeSheet, v);
+        else next.set(k, v);
+      });
+      return next;
+    });
     setActiveSheet(target);
   }, [activeSheet, sheets.length]);
 
