@@ -151,6 +151,16 @@ const Index = () => {
     localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
   }, [importedCellsMap]);
 
+  useEffect(() => {
+    const obj: Record<string, Record<string, Record<string, string>>> = {};
+    cellColorsMap.forEach((v, k) => { obj[k] = v; });
+    localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+  }, [cellColorsMap]);
+
+  useEffect(() => {
+    localStorage.setItem(LAST_COLOR_KEY, lastColor);
+  }, [lastColor]);
+
   const sheet = sheets[activeSheet];
   const totalPages = sheets.length;
   const sidNr = `${activeSheet + 1}/${totalPages}`;
