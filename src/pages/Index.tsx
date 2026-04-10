@@ -128,6 +128,20 @@ const Index = () => {
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
 
+  // Cell coloring state
+  const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
+    try {
+      const raw = localStorage.getItem(CELL_COLORS_KEY);
+      if (!raw) return new Map();
+      const obj = JSON.parse(raw) as Record<string, Record<string, Record<string, string>>>;
+      const map = new Map<number, Record<string, Record<string, string>>>();
+      Object.entries(obj).forEach(([k, v]) => map.set(Number(k), v));
+      return map;
+    } catch { return new Map(); }
+  });
+  const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
+  const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
+
   // Persist to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
