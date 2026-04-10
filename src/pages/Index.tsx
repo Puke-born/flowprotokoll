@@ -239,16 +239,24 @@ const Index = () => {
 
   const handleRemoveSheet = useCallback(() => {
     if (sheets.length <= 1) {
-      // Last sheet — reset to clean state
       setSheets([createEmptySheet("Blad 1")]);
       setActiveSheet(0);
       setImportedCellsMap(new Map());
+      setCellColorsMap(new Map());
       toast.info("Blad borttaget");
       return;
     }
     // Clear imported cells for removed sheet and re-index
     setImportedCellsMap((prev) => {
       const next = new Map<number, Set<string>[]>();
+      prev.forEach((v, k) => {
+        if (k < activeSheet) next.set(k, v);
+        else if (k > activeSheet) next.set(k - 1, v);
+      });
+      return next;
+    });
+    setCellColorsMap((prev) => {
+      const next = new Map<number, Record<string, Record<string, string>>>();
       prev.forEach((v, k) => {
         if (k < activeSheet) next.set(k, v);
         else if (k > activeSheet) next.set(k - 1, v);
@@ -297,6 +305,7 @@ const Index = () => {
       newImportedMap.set(sheetIdx, rowSets);
     });
     setImportedCellsMap(newImportedMap);
+    setCellColorsMap(new Map());
     setSheets(newSheets);
     setActiveSheet(0);
     setImportDialogOpen(false);
@@ -313,10 +322,13 @@ const Index = () => {
   const fileHandleRef = useRef<FileSystemFileHandle | null>(null);
 
   const handleSaveProject = useCallback(async () => {
+    const cellColorsObj: Record<string, Record<string, Record<string, string>>> = {};
+    cellColorsMap.forEach((v, k) => { cellColorsObj[k] = v; });
     const projectData = {
       sheets,
       activeSheet,
       importedCells: serializeImportedCells(importedCellsMap),
+      cellColors: cellColorsObj,
     };
     const jsonString = JSON.stringify(projectData);
 
@@ -353,7 +365,7 @@ const Index = () => {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Projekt sparat!");
-  }, [sheets, activeSheet, importedCellsMap]);
+  }, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
 
   const handleLoadProject = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -368,6 +380,13 @@ const Index = () => {
           setImportedCellsMap(
             data.importedCells ? deserializeImportedCells(data.importedCells) : new Map()
           );
+          if (data.cellColors) {
+            const map = new Map<number, Record<string, Record<string, string>>>();
+            Object.entries(data.cellColors).forEach(([k, v]) => map.set(Number(k), v as Record<string, Record<string, string>>));
+            setCellColorsMap(map);
+          } else {
+            setCellColorsMap(new Map());
+          }
           toast.success("Projekt laddat!");
         } else {
           toast.error("Ogiltig projektfil");
@@ -381,10 +400,11 @@ const Index = () => {
   }, []);
 
   const handleExport = useCallback(() => {
-    exportAllSheets(sheets);
+    const cellColorsForExport: Record<string, Record<string, string>>[] = sheets.map((_, i) => cellColorsMap.get(i) || {});
+    exportAllSheets(sheets, cellColorsForExport);
     setImportedCellsMap(new Map());
-    toast.success("Excel-fil exporterad! Projektsparning rensad.");
-  }, [sheets]);
+    toast.success("Excel-fil exporterad!");
+  }, [sheets, cellColorsMap]);
 
   const handleClear = useCallback(() => {
     setSheets((prev) => {
@@ -397,6 +417,11 @@ const Index = () => {
       next.delete(activeSheet);
       return next;
     });
+    setCellColorsMap((prev) => {
+      const next = new Map(prev);
+      next.delete(activeSheet);
+      return next;
+    });
     toast.info("Bladet har rensats");
   }, [activeSheet]);
 
@@ -404,6 +429,7 @@ const Index = () => {
     setSheets([createEmptySheet("Blad 1")]);
     setActiveSheet(0);
     setImportedCellsMap(new Map());
+    setCellColorsMap(new Map());
     toast.success("Nytt protokoll skapat");
   }, []);
 
