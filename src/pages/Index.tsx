@@ -641,10 +641,40 @@ const Index = () => {
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Ta bort blad</span>
           </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="w-6 h-6 rounded border border-border shadow-sm cursor-pointer hover:scale-110 transition-transform"
+                style={{ backgroundColor: lastColor }}
+                title="Cellfärg"
+              />
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" side="bottom" align="start">
+              <div className="flex gap-1.5">
+                {COLOR_PALETTE.map((c) => (
+                  <button
+                    key={c.hex}
+                    onClick={() => handleApplyColor(c.hex)}
+                    title={c.label}
+                    className={`w-6 h-6 rounded border shadow-sm cursor-pointer hover:scale-110 transition-transform ${
+                      c.hex === "transparent" ? "border-dashed border-muted-foreground bg-white" : "border-border"
+                    }`}
+                    style={c.hex !== "transparent" ? { backgroundColor: c.hex } : undefined}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <ProtocolHeader fields={headerFields} />
-        <AirflowGrid rows={sheet.rows} importedCells={importedCellsMap.get(activeSheet)} onCellChange={handleCellChange} />
+        <AirflowGrid
+          rows={sheet.rows}
+          importedCells={importedCellsMap.get(activeSheet)}
+          cellColors={cellColorsMap.get(activeSheet)}
+          onCellChange={handleCellChange}
+          onCellSelect={handleCellSelect}
+        />
         <div className="rounded-lg border border-grid-border shadow-sm overflow-hidden">
           <div className="bg-grid-header px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Övriga anteckningar</span>
