@@ -478,6 +478,33 @@ const Index = () => {
     setActiveSheet(target);
   }, [activeSheet, sheets.length]);
 
+  const handleApplyColor = useCallback((color: string) => {
+    if (!selectedCell) return;
+    const actualColor = color === "transparent" ? undefined : color;
+    setCellColorsMap((prev) => {
+      const next = new Map(prev);
+      const sheetColors = { ...(next.get(activeSheet) || {}) };
+      const rowColors = { ...(sheetColors[selectedCell.row] || {}) };
+      if (actualColor) {
+        rowColors[selectedCell.col] = actualColor;
+      } else {
+        delete rowColors[selectedCell.col];
+      }
+      if (Object.keys(rowColors).length === 0) {
+        delete sheetColors[selectedCell.row];
+      } else {
+        sheetColors[selectedCell.row] = rowColors;
+      }
+      next.set(activeSheet, sheetColors);
+      return next;
+    });
+    if (color !== "transparent") setLastColor(color);
+  }, [activeSheet, selectedCell]);
+
+  const handleCellSelect = useCallback((row: number, colKey: string) => {
+    setSelectedCell({ row, col: colKey });
+  }, []);
+
   const headerFields = [
     { label: "Kund", value: sheet.kund, onChange: updateSheetField("kund") },
     { label: "Plan", value: sheet.plan, onChange: updateSheetField("plan") },
