@@ -38,10 +38,12 @@ export interface GridRow {
 interface AirflowGridProps {
   rows: GridRow[];
   importedCells?: Set<string>[];
+  cellColors?: Record<string, Record<string, string>>;
   onCellChange: (rowIndex: number, colKey: string, value: string) => void;
+  onCellSelect?: (row: number, colKey: string) => void;
 }
 
-const AirflowGrid = memo(({ rows, importedCells, onCellChange }: AirflowGridProps) => {
+const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCellSelect }: AirflowGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = useCallback(
@@ -123,6 +125,7 @@ const AirflowGrid = memo(({ rows, importedCells, onCellChange }: AirflowGridProp
                     value={row[col.key] || ""}
                     onChange={(e) => onCellChange(rowIdx, col.key, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, rowIdx, colIdx)}
+                    onFocus={() => onCellSelect?.(rowIdx, col.key)}
                     onBlur={() => {
                       if (EVAL_COLUMNS.has(col.key)) {
                         const val = row[col.key] || "";
@@ -132,8 +135,9 @@ const AirflowGrid = memo(({ rows, importedCells, onCellChange }: AirflowGridProp
                         }
                       }
                     }}
+                    style={cellColors?.[rowIdx]?.[col.key] ? { backgroundColor: cellColors[rowIdx][col.key] } : undefined}
                     className={`w-full h-10 px-2 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none ${
-                      importedCells?.[rowIdx]?.has(col.key) ? "bg-yellow-100 dark:bg-yellow-900/30" : ""
+                      !cellColors?.[rowIdx]?.[col.key] && importedCells?.[rowIdx]?.has(col.key) ? "bg-yellow-100 dark:bg-yellow-900/30" : ""
                     }`}
                   />
                 </td>
