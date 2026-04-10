@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil, FilePlus2, Save, FolderOpen, MoreVertical } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -56,6 +57,17 @@ const createEmptySheet = (name?: string): Sheet => ({
 
 const STORAGE_KEY = "lfp-protocol-data";
 const IMPORTED_CELLS_KEY = "lfp-imported-cells";
+const CELL_COLORS_KEY = "lfp-cell-colors";
+const LAST_COLOR_KEY = "lfp-last-color";
+
+const COLOR_PALETTE = [
+  { hex: "transparent", label: "Ingen" },
+  { hex: "#fef9c3", label: "Gul" },
+  { hex: "#bbf7d0", label: "Grön" },
+  { hex: "#bfdbfe", label: "Blå" },
+  { hex: "#fecaca", label: "Röd" },
+  { hex: "#fed7aa", label: "Orange" },
+];
 
 const serializeImportedCells = (map: Map<number, Set<string>[]>): string => {
   const obj: Record<string, string[][]> = {};
@@ -116,6 +128,20 @@ const Index = () => {
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
 
+  // Cell coloring state
+  const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
+    try {
+      const raw = localStorage.getItem(CELL_COLORS_KEY);
+      if (!raw) return new Map();
+      const obj = JSON.parse(raw) as Record<string, Record<string, Record<string, string>>>;
+      const map = new Map<number, Record<string, Record<string, string>>>();
+      Object.entries(obj).forEach(([k, v]) => map.set(Number(k), v));
+      return map;
+    } catch { return new Map(); }
+  });
+  const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
+  const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
+
   // Persist to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
@@ -124,6 +150,16 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
   }, [importedCellsMap]);
+
+  useEffect(() => {
+    const obj: Record<string, Record<string, Record<string, string>>> = {};
+    cellColorsMap.forEach((v, k) => { obj[k] = v; });
+    localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+  }, [cellColorsMap]);
+
+  useEffect(() => {
+    localStorage.setItem(LAST_COLOR_KEY, lastColor);
+  }, [lastColor]);
 
   const sheet = sheets[activeSheet];
   const totalPages = sheets.length;
@@ -203,16 +239,24 @@ const Index = () => {
 
   const handleRemoveSheet = useCallback(() => {
     if (sheets.length <= 1) {
-      // Last sheet — reset to clean state
       setSheets([createEmptySheet("Blad 1")]);
       setActiveSheet(0);
       setImportedCellsMap(new Map());
+      setCellColorsMap(new Map());
       toast.info("Blad borttaget");
       return;
     }
     // Clear imported cells for removed sheet and re-index
     setImportedCellsMap((prev) => {
       const next = new Map<number, Set<string>[]>();
+      prev.forEach((v, k) => {
+        if (k < activeSheet) next.set(k, v);
+        else if (k > activeSheet) next.set(k - 1, v);
+      });
+      return next;
+    });
+    setCellColorsMap((prev) => {
+      const next = new Map<number, Record<string, Record<string, string>>>();
       prev.forEach((v, k) => {
         if (k < activeSheet) next.set(k, v);
         else if (k > activeSheet) next.set(k - 1, v);
@@ -261,6 +305,7 @@ const Index = () => {
       newImportedMap.set(sheetIdx, rowSets);
     });
     setImportedCellsMap(newImportedMap);
+    setCellColorsMap(new Map());
     setSheets(newSheets);
     setActiveSheet(0);
     setImportDialogOpen(false);
@@ -277,10 +322,13 @@ const Index = () => {
   const fileHandleRef = useRef<FileSystemFileHandle | null>(null);
 
   const handleSaveProject = useCallback(async () => {
+    const cellColorsObj: Record<string, Record<string, Record<string, string>>> = {};
+    cellColorsMap.forEach((v, k) => { cellColorsObj[k] = v; });
     const projectData = {
       sheets,
       activeSheet,
       importedCells: serializeImportedCells(importedCellsMap),
+      cellColors: cellColorsObj,
     };
     const jsonString = JSON.stringify(projectData);
 
@@ -317,7 +365,7 @@ const Index = () => {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Projekt sparat!");
-  }, [sheets, activeSheet, importedCellsMap]);
+  }, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
 
   const handleLoadProject = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -332,6 +380,13 @@ const Index = () => {
           setImportedCellsMap(
             data.importedCells ? deserializeImportedCells(data.importedCells) : new Map()
           );
+          if (data.cellColors) {
+            const map = new Map<number, Record<string, Record<string, string>>>();
+            Object.entries(data.cellColors).forEach(([k, v]) => map.set(Number(k), v as Record<string, Record<string, string>>));
+            setCellColorsMap(map);
+          } else {
+            setCellColorsMap(new Map());
+          }
           toast.success("Projekt laddat!");
         } else {
           toast.error("Ogiltig projektfil");
@@ -345,10 +400,11 @@ const Index = () => {
   }, []);
 
   const handleExport = useCallback(() => {
-    exportAllSheets(sheets);
+    const cellColorsForExport: Record<string, Record<string, string>>[] = sheets.map((_, i) => cellColorsMap.get(i) || {});
+    exportAllSheets(sheets, cellColorsForExport);
     setImportedCellsMap(new Map());
-    toast.success("Excel-fil exporterad! Projektsparning rensad.");
-  }, [sheets]);
+    toast.success("Excel-fil exporterad!");
+  }, [sheets, cellColorsMap]);
 
   const handleClear = useCallback(() => {
     setSheets((prev) => {
@@ -361,6 +417,11 @@ const Index = () => {
       next.delete(activeSheet);
       return next;
     });
+    setCellColorsMap((prev) => {
+      const next = new Map(prev);
+      next.delete(activeSheet);
+      return next;
+    });
     toast.info("Bladet har rensats");
   }, [activeSheet]);
 
@@ -368,6 +429,7 @@ const Index = () => {
     setSheets([createEmptySheet("Blad 1")]);
     setActiveSheet(0);
     setImportedCellsMap(new Map());
+    setCellColorsMap(new Map());
     toast.success("Nytt protokoll skapat");
   }, []);
 
@@ -404,8 +466,44 @@ const Index = () => {
       });
       return next;
     });
+    setCellColorsMap((prev) => {
+      const next = new Map<number, Record<string, Record<string, string>>>();
+      prev.forEach((v, k) => {
+        if (k === activeSheet) next.set(target, v);
+        else if (k === target) next.set(activeSheet, v);
+        else next.set(k, v);
+      });
+      return next;
+    });
     setActiveSheet(target);
   }, [activeSheet, sheets.length]);
+
+  const handleApplyColor = useCallback((color: string) => {
+    if (!selectedCell) return;
+    const actualColor = color === "transparent" ? undefined : color;
+    setCellColorsMap((prev) => {
+      const next = new Map(prev);
+      const sheetColors = { ...(next.get(activeSheet) || {}) };
+      const rowColors = { ...(sheetColors[selectedCell.row] || {}) };
+      if (actualColor) {
+        rowColors[selectedCell.col] = actualColor;
+      } else {
+        delete rowColors[selectedCell.col];
+      }
+      if (Object.keys(rowColors).length === 0) {
+        delete sheetColors[selectedCell.row];
+      } else {
+        sheetColors[selectedCell.row] = rowColors;
+      }
+      next.set(activeSheet, sheetColors);
+      return next;
+    });
+    if (color !== "transparent") setLastColor(color);
+  }, [activeSheet, selectedCell]);
+
+  const handleCellSelect = useCallback((row: number, colKey: string) => {
+    setSelectedCell({ row, col: colKey });
+  }, []);
 
   const headerFields = [
     { label: "Kund", value: sheet.kund, onChange: updateSheetField("kund") },
@@ -543,10 +641,40 @@ const Index = () => {
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Ta bort blad</span>
           </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="w-6 h-6 rounded border border-border shadow-sm cursor-pointer hover:scale-110 transition-transform"
+                style={{ backgroundColor: lastColor }}
+                title="Cellfärg"
+              />
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" side="bottom" align="start">
+              <div className="flex gap-1.5">
+                {COLOR_PALETTE.map((c) => (
+                  <button
+                    key={c.hex}
+                    onClick={() => handleApplyColor(c.hex)}
+                    title={c.label}
+                    className={`w-6 h-6 rounded border shadow-sm cursor-pointer hover:scale-110 transition-transform ${
+                      c.hex === "transparent" ? "border-dashed border-muted-foreground bg-white" : "border-border"
+                    }`}
+                    style={c.hex !== "transparent" ? { backgroundColor: c.hex } : undefined}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <ProtocolHeader fields={headerFields} />
-        <AirflowGrid rows={sheet.rows} importedCells={importedCellsMap.get(activeSheet)} onCellChange={handleCellChange} />
+        <AirflowGrid
+          rows={sheet.rows}
+          importedCells={importedCellsMap.get(activeSheet)}
+          cellColors={cellColorsMap.get(activeSheet)}
+          onCellChange={handleCellChange}
+          onCellSelect={handleCellSelect}
+        />
         <div className="rounded-lg border border-grid-border shadow-sm overflow-hidden">
           <div className="bg-grid-header px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Övriga anteckningar</span>
