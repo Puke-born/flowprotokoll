@@ -498,6 +498,21 @@ const Index = () => {
       next.set(activeSheet, sheetColors);
       return next;
     });
+    // Also remove import highlight when applying transparent
+    if (color === "transparent") {
+      setImportedCellsMap((prev) => {
+        const next = new Map(prev);
+        const arr = next.get(activeSheet);
+        if (arr && arr[selectedCell.row]) {
+          const newSet = new Set(arr[selectedCell.row]);
+          newSet.delete(selectedCell.col);
+          const newArr = [...arr];
+          newArr[selectedCell.row] = newSet;
+          next.set(activeSheet, newArr);
+        }
+        return next;
+      });
+    }
     if (color !== "transparent") setLastColor(color);
   }, [activeSheet, selectedCell]);
 
@@ -641,30 +656,40 @@ const Index = () => {
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Ta bort blad</span>
           </Button>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className="w-6 h-6 rounded border border-border shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                style={{ backgroundColor: lastColor }}
-                title="Cellfärg"
-              />
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-2" side="bottom" align="start">
-              <div className="flex gap-1.5">
-                {COLOR_PALETTE.map((c) => (
-                  <button
-                    key={c.hex}
-                    onClick={() => handleApplyColor(c.hex)}
-                    title={c.label}
-                    className={`w-6 h-6 rounded border shadow-sm cursor-pointer hover:scale-110 transition-transform ${
-                      c.hex === "transparent" ? "border-dashed border-muted-foreground bg-white" : "border-border"
-                    }`}
-                    style={c.hex !== "transparent" ? { backgroundColor: c.hex } : undefined}
-                  />
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <div className="ml-auto flex items-center gap-1">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="w-6 h-6 rounded border border-border shadow-sm cursor-pointer hover:scale-110 transition-transform"
+                  style={{ backgroundColor: lastColor }}
+                  title="Välj färg (högerklicka eller klicka för att applicera)"
+                  onClick={(e) => {
+                    if (!e.defaultPrevented) {
+                      handleApplyColor(lastColor);
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                  }}
+                />
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2" side="bottom" align="end">
+                <div className="flex gap-1.5">
+                  {COLOR_PALETTE.map((c) => (
+                    <button
+                      key={c.hex}
+                      onClick={() => handleApplyColor(c.hex)}
+                      title={c.label}
+                      className={`w-6 h-6 rounded border shadow-sm cursor-pointer hover:scale-110 transition-transform ${
+                        c.hex === "transparent" ? "border-dashed border-muted-foreground bg-white" : "border-border"
+                      }`}
+                      style={c.hex !== "transparent" ? { backgroundColor: c.hex } : undefined}
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         <ProtocolHeader fields={headerFields} />
