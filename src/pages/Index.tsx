@@ -656,22 +656,21 @@ const Index = () => {
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Ta bort blad</span>
           </Button>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-0">
+            <button
+              className="w-6 h-6 rounded-l border border-border shadow-sm cursor-pointer hover:scale-105 transition-transform"
+              style={{ backgroundColor: lastColor }}
+              title="Applicera färg"
+              onClick={() => handleApplyColor(lastColor)}
+            />
             <Popover>
               <PopoverTrigger asChild>
                 <button
-                  className="w-6 h-6 rounded border border-border shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                  style={{ backgroundColor: lastColor }}
-                  title="Välj färg (högerklicka eller klicka för att applicera)"
-                  onClick={(e) => {
-                    if (!e.defaultPrevented) {
-                      handleApplyColor(lastColor);
-                    }
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                  }}
-                />
+                  className="w-4 h-6 rounded-r border border-l-0 border-border shadow-sm cursor-pointer hover:bg-muted transition-colors flex items-center justify-center"
+                  title="Välj färg"
+                >
+                  <ChevronDown className="w-2.5 h-2.5 text-muted-foreground" />
+                </button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-2" side="bottom" align="end">
                 <div className="flex gap-1.5">
