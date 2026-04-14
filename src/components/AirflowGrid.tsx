@@ -3,9 +3,7 @@ import { memo, useCallback, useRef, useState } from "react";
 const EVAL_COLUMNS = new Set(["tilluft_uppmat", "franluft_uppmat"]);
 
 function tryEvalMath(expr: string): string | null {
-  // Only evaluate if it contains an operator
   if (!/[+\-*/]/.test(expr)) return null;
-  // Only allow digits, operators, dots, spaces, parens
   if (!/^[\d+\-*/.()\s]+$/.test(expr.trim())) return null;
   try {
     const result = new Function(`"use strict"; return (${expr.trim()})`)();
@@ -41,10 +39,13 @@ interface AirflowGridProps {
   cellColors?: Record<string, Record<string, string>>;
   onCellChange: (rowIndex: number, colKey: string, value: string) => void;
   onCellSelect?: (row: number, colKey: string) => void;
+  onRowReorder?: (fromIndex: number, toIndex: number) => void;
 }
 
-const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCellSelect }: AirflowGridProps) => {
+const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCellSelect, onRowReorder }: AirflowGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>, rowIdx: number, colIdx: number) => {
@@ -60,12 +61,44 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
           `[data-row="${rowIdx - 1}"][data-col="${colIdx}"]`
         );
         prev?.focus();
-      } else if (e.key === "Tab" && !e.shiftKey) {
-        // default tab behavior is fine
       }
     },
     []
   );
+
+  const handleDragStart = useCallback((e: React.DragEvent, rowIdx: number) => {
+    setDragFrom(rowIdx);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(rowIdx));
+    // Make the drag image slightly transparent
+    if (e.currentTarget instanceof HTMLElement) {
+      const tr = e.currentTarget.closest("tr");
+      if (tr) {
+        e.dataTransfer.setDragImage(tr, 0, 20);
+      }
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, rowIdx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOver(rowIdx);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, toIdx: number) => {
+    e.preventDefault();
+    const fromIdx = dragFrom;
+    setDragFrom(null);
+    setDragOver(null);
+    if (fromIdx !== null && fromIdx !== toIdx) {
+      onRowReorder?.(fromIdx, toIdx);
+    }
+  }, [dragFrom, onRowReorder]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragFrom(null);
+    setDragOver(null);
+  }, []);
 
   return (
     <div ref={gridRef} className="overflow-x-auto rounded-lg border border-grid-border shadow-sm">
@@ -105,9 +138,19 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
           {rows.map((row, rowIdx) => (
             <tr
               key={rowIdx}
-              className={`${rowIdx % 2 === 0 ? "bg-grid-cell" : "bg-grid-cell-alt"} hover:bg-primary/5 transition-colors`}
+              className={`${rowIdx % 2 === 0 ? "bg-grid-cell" : "bg-grid-cell-alt"} hover:bg-primary/5 transition-colors ${
+                dragFrom === rowIdx ? "opacity-40" : ""
+              } ${dragOver === rowIdx && dragFrom !== null && dragFrom !== rowIdx ? "border-t-2 border-primary" : ""}`}
             >
-              <td className="px-1 py-0 text-[10px] text-muted-foreground text-center border-r border-grid-border/40 font-mono">
+              <td
+                draggable
+                onDragStart={(e) => handleDragStart(e, rowIdx)}
+                onDragOver={(e) => handleDragOver(e, rowIdx)}
+                onDrop={(e) => handleDrop(e, rowIdx)}
+                onDragEnd={handleDragEnd}
+                className="px-1 py-0 text-[10px] text-muted-foreground text-center border-r border-grid-border/40 font-mono cursor-grab active:cursor-grabbing select-none hover:bg-primary/10 transition-colors"
+                title="Dra för att flytta rad"
+              >
                 {rowIdx + 1}
               </td>
               {COLUMNS.map((col, colIdx) => (
