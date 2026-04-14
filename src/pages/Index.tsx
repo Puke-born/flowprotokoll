@@ -520,6 +520,48 @@ const Index = () => {
     setSelectedCell({ row, col: colKey });
   }, []);
 
+  const handleRowReorder = useCallback((fromIndex: number, toIndex: number) => {
+    setSheets(prev => {
+      const updated = [...prev];
+      const sheet = { ...updated[activeSheet] };
+      const newRows = [...sheet.rows];
+      const [movedRow] = newRows.splice(fromIndex, 1);
+      newRows.splice(toIndex, 0, movedRow);
+      sheet.rows = newRows;
+      updated[activeSheet] = sheet;
+      return updated;
+    });
+
+    // Reorder cellColors
+    setCellColorsMap(prev => {
+      const colors = prev.get(activeSheet);
+      if (!colors) return prev;
+      const entries = Object.entries(colors).map(([k, v]) => [Number(k), v] as [number, Record<string, string>]);
+      const arr: (Record<string, string> | undefined)[] = [];
+      entries.forEach(([idx, val]) => { arr[idx] = val; });
+      const [movedColor] = arr.splice(fromIndex, 1);
+      arr.splice(toIndex, 0, movedColor);
+      const newColors: Record<string, Record<string, string>> = {};
+      arr.forEach((val, idx) => { if (val && Object.keys(val).length > 0) newColors[idx] = val; });
+      const next = new Map(prev);
+      if (Object.keys(newColors).length > 0) next.set(activeSheet, newColors);
+      else next.delete(activeSheet);
+      return next;
+    });
+
+    // Reorder importedCells
+    setImportedCellsMap(prev => {
+      const imported = prev.get(activeSheet);
+      if (!imported) return prev;
+      const arr = [...imported];
+      const [movedImported] = arr.splice(fromIndex, 1);
+      arr.splice(toIndex, 0, movedImported);
+      const next = new Map(prev);
+      next.set(activeSheet, arr);
+      return next;
+    });
+  }, [activeSheet]);
+
   const headerFields = [
     { label: "Kund", value: sheet.kund, onChange: updateSheetField("kund") },
     { label: "Plan", value: sheet.plan, onChange: updateSheetField("plan") },
