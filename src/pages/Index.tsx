@@ -734,6 +734,7 @@ const Index = () => {
           cellColors={cellColorsMap.get(activeSheet)}
           onCellChange={handleCellChange}
           onCellSelect={handleCellSelect}
+          onRowReorder={handleRowReorder}
         />
         <div className="rounded-lg border border-grid-border shadow-sm overflow-hidden">
           <div className="bg-grid-header px-3 py-2">
