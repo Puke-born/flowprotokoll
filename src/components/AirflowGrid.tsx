@@ -17,16 +17,16 @@ function tryEvalMath(expr: string): string | null {
 }
 
 const COLUMNS = [
-  { key: "rum_nr", label: "Rum", width: "8%", center: false },
-  { key: "rum_namn", label: "", width: "18%", center: false },
-  { key: "tilluft_dontyp", label: "Dontyp", width: "9%", center: false },
-  { key: "tilluft_inst", label: "Pa/K-f", width: "9%", center: false },
-  { key: "tilluft_beraknat", label: "Beräknat", width: "10%", center: true },
-  { key: "tilluft_uppmat", label: "Uppmätt", width: "10%", center: true },
-  { key: "franluft_dontyp", label: "Dontyp", width: "9%", center: false },
-  { key: "franluft_inst", label: "Pa/K-f", width: "9%", center: false },
-  { key: "franluft_beraknat", label: "Beräknat", width: "10%", center: true },
-  { key: "franluft_uppmat", label: "Uppmätt", width: "10%", center: true },
+  { key: "rum_nr", label: "Rum", width: "7%", center: false, pad: true },
+  { key: "rum_namn", label: "", width: "13%", center: false, pad: true },
+  { key: "tilluft_dontyp", label: "Dontyp", width: "8%", center: true, pad: false },
+  { key: "tilluft_inst", label: "Pa/K-f", width: "8%", center: true, pad: false },
+  { key: "tilluft_beraknat", label: "Beräknat", width: "12%", center: true, pad: false },
+  { key: "tilluft_uppmat", label: "Uppmätt", width: "12%", center: true, pad: false },
+  { key: "franluft_dontyp", label: "Dontyp", width: "8%", center: true, pad: false },
+  { key: "franluft_inst", label: "Pa/K-f", width: "8%", center: true, pad: false },
+  { key: "franluft_beraknat", label: "Beräknat", width: "12%", center: true, pad: false },
+  { key: "franluft_uppmat", label: "Uppmätt", width: "12%", center: true, pad: false },
 ];
 
 export interface GridRow {
@@ -185,7 +185,7 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
                       }
                     }}
                     style={cellColors?.[rowIdx]?.[col.key] ? { backgroundColor: cellColors[rowIdx][col.key] } : undefined}
-                    className={`w-full h-10 px-2 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none ${
+                    className={`w-full h-10 ${col.pad ? "px-2" : "px-0.5"} text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none ${
                       col.center ? "text-center" : ""
                     } ${
                       !cellColors?.[rowIdx]?.[col.key] && importedCells?.[rowIdx]?.has(col.key) ? "bg-yellow-100 dark:bg-yellow-900/30" : ""
