@@ -102,7 +102,7 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
 
   return (
     <div ref={gridRef} className="overflow-x-auto rounded-lg border border-grid-border shadow-sm">
-      <table className="w-full border-collapse min-w-[700px]">
+      <table className="w-full border-collapse min-w-[700px] table-fixed">
         <colgroup>
           <col style={{ width: "32px" }} />
           {COLUMNS.map((c) => (
