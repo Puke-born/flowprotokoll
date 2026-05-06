@@ -439,10 +439,15 @@ const Index = () => {
   }, [activeSheet, sheets]);
 
   const handleRenameConfirm = useCallback(() => {
-    if (!renameValue.trim()) return;
+    const trimmed = renameValue.trim();
+    if (!trimmed) return;
+    if (/[<>:"/\\|?*]/.test(trimmed)) {
+      toast.error('Bladnamn får inte innehålla < > : " / \\ | ? *');
+      return;
+    }
     setSheets((prev) => {
       const next = [...prev];
-      next[activeSheet] = { ...next[activeSheet], name: renameValue.trim() };
+      next[activeSheet] = { ...next[activeSheet], name: trimmed };
       return next;
     });
     setRenameDialogOpen(false);
@@ -781,10 +786,13 @@ const Index = () => {
           </DialogHeader>
           <Input
             value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
+            onChange={(e) => setRenameValue(e.target.value.replace(/[<>:"/\\|?*]/g, ""))}
             placeholder="Bladnamn"
             onKeyDown={(e) => e.key === "Enter" && handleRenameConfirm()}
           />
+          <p className="text-xs text-muted-foreground">
+            Får inte innehålla: {'< > : " / \\ | ? *'}
+          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>Avbryt</Button>
             <Button onClick={handleRenameConfirm} disabled={!renameValue.trim()}>Spara</Button>
