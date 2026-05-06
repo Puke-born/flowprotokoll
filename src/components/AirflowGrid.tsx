@@ -17,16 +17,16 @@ function tryEvalMath(expr: string): string | null {
 }
 
 const COLUMNS = [
-  { key: "rum_nr", label: "Rum" },
-  { key: "rum_namn", label: "" },
-  { key: "tilluft_dontyp", label: "Dontyp" },
-  { key: "tilluft_inst", label: "Pa/K-f" },
-  { key: "tilluft_beraknat", label: "Beräknat" },
-  { key: "tilluft_uppmat", label: "Uppmätt" },
-  { key: "franluft_dontyp", label: "Dontyp" },
-  { key: "franluft_inst", label: "Pa/K-f" },
-  { key: "franluft_beraknat", label: "Beräknat" },
-  { key: "franluft_uppmat", label: "Uppmätt" },
+  { key: "rum_nr", label: "Rum", width: "8%", center: false },
+  { key: "rum_namn", label: "", width: "18%", center: false },
+  { key: "tilluft_dontyp", label: "Dontyp", width: "9%", center: false },
+  { key: "tilluft_inst", label: "Pa/K-f", width: "9%", center: false },
+  { key: "tilluft_beraknat", label: "Beräknat", width: "10%", center: true },
+  { key: "tilluft_uppmat", label: "Uppmätt", width: "10%", center: true },
+  { key: "franluft_dontyp", label: "Dontyp", width: "9%", center: false },
+  { key: "franluft_inst", label: "Pa/K-f", width: "9%", center: false },
+  { key: "franluft_beraknat", label: "Beräknat", width: "10%", center: true },
+  { key: "franluft_uppmat", label: "Uppmätt", width: "10%", center: true },
 ];
 
 export interface GridRow {
@@ -103,6 +103,12 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
   return (
     <div ref={gridRef} className="overflow-x-auto rounded-lg border border-grid-border shadow-sm">
       <table className="w-full border-collapse min-w-[700px]">
+        <colgroup>
+          <col style={{ width: "32px" }} />
+          {COLUMNS.map((c) => (
+            <col key={c.key} style={{ width: c.width }} />
+          ))}
+        </colgroup>
         <thead>
           <tr className="bg-grid-header text-grid-header-foreground">
             <th className="px-1 py-2 text-[10px] font-semibold uppercase tracking-wider text-center border-r border-grid-border/30 w-8">
@@ -180,6 +186,8 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
                     }}
                     style={cellColors?.[rowIdx]?.[col.key] ? { backgroundColor: cellColors[rowIdx][col.key] } : undefined}
                     className={`w-full h-10 px-2 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none ${
+                      col.center ? "text-center" : ""
+                    } ${
                       !cellColors?.[rowIdx]?.[col.key] && importedCells?.[rowIdx]?.has(col.key) ? "bg-yellow-100 dark:bg-yellow-900/30" : ""
                     }`}
                   />
