@@ -23,6 +23,16 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const NUM_ROWS = 36; // rows 14–49
 
@@ -141,6 +151,22 @@ const Index = () => {
   });
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
   const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
+  const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove">(null);
+
+  const confirmConfig = {
+    new: {
+      title: "Skapa nytt protokoll?",
+      description: "All osparad data kommer att gå förlorad. Är du säker?",
+    },
+    clear: {
+      title: "Rensa aktivt blad?",
+      description: "All data och färgmarkering på det aktiva bladet kommer att tas bort.",
+    },
+    remove: {
+      title: "Ta bort aktivt blad?",
+      description: "Bladet och dess innehåll kommer att tas bort permanent.",
+    },
+  } as const;
 
   // Persist to localStorage
   useEffect(() => {
@@ -603,11 +629,11 @@ const Index = () => {
               <FolderOpen className="w-4 h-4" />
               Öppna
             </Button>
-            <Button variant="outline" size="sm" onClick={handleNewProtocol} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => setConfirmAction("new")} className="gap-1.5">
               <FilePlus2 className="w-4 h-4" />
               Nytt
             </Button>
-            <Button variant="outline" size="sm" onClick={handleClear} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => setConfirmAction("clear")} className="gap-1.5">
               <Trash2 className="w-4 h-4" />
               Rensa
             </Button>
@@ -648,11 +674,11 @@ const Index = () => {
                   Import
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleNewProtocol}>
+                <DropdownMenuItem onClick={() => setConfirmAction("new")}>
                   <FilePlus2 className="w-4 h-4 mr-2" />
                   Nytt
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleClear} className="text-destructive">
+                <DropdownMenuItem onClick={() => setConfirmAction("clear")} className="text-destructive">
                   <Trash2 className="w-4 h-4 mr-2" />
                   Rensa
                 </DropdownMenuItem>
@@ -699,7 +725,7 @@ const Index = () => {
           <Button variant="outline" size="icon" onClick={() => handleMoveSheet(1)} disabled={activeSheet === sheets.length - 1} className="h-8 w-8">
             <ChevronRight className="w-3.5 h-3.5" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleRemoveSheet} className="gap-1 h-8 text-destructive hover:text-destructive">
+          <Button variant="ghost" size="sm" onClick={() => setConfirmAction("remove")} className="gap-1 h-8 text-destructive hover:text-destructive">
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Ta bort blad</span>
           </Button>
@@ -799,6 +825,29 @@ const Index = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={confirmAction !== null} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAction ? confirmConfig[confirmAction].title : ""}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction ? confirmConfig[confirmAction].description : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmAction === "new") handleNewProtocol();
+                else if (confirmAction === "clear") handleClear();
+                else if (confirmAction === "remove") handleRemoveSheet();
+                setConfirmAction(null);
+              }}
+            >
+              Bekräfta
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
