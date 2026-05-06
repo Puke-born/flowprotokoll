@@ -17,7 +17,7 @@ function tryEvalMath(expr: string): string | null {
 }
 
 const COLUMNS = [
-  { key: "rum_nr", label: "Rum", width: "10%", center: true, pad: false },
+  { key: "rum_nr", label: "Rum", width: "10%", center: false, pad: true },
   { key: "rum_namn", label: "", width: "13%", center: false, pad: true },
   { key: "tilluft_dontyp", label: "Dontyp", width: "8%", center: true, pad: false },
   { key: "tilluft_inst", label: "Pa/K-f", width: "8%", center: true, pad: false },
