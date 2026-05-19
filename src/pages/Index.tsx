@@ -787,16 +787,39 @@ const Index = () => {
           <DialogHeader>
             <DialogTitle>Välj blad att importera</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            {availableSheetNames.map((name) => (
-              <label key={name} className="flex items-center gap-3 cursor-pointer">
-                <Checkbox
-                  checked={selectedSheetNames.includes(name)}
-                  onCheckedChange={() => toggleSheetSelection(name)}
-                />
-                <span className="text-sm">{name}</span>
-              </label>
-            ))}
+          <p className="text-xs text-muted-foreground">
+            Startraden upptäcks automatiskt men kan justeras.
+          </p>
+          <div className="space-y-2 py-2">
+            {availableSheetNames.map((name) => {
+              const checked = selectedSheetNames.includes(name);
+              return (
+                <div key={name} className="flex items-center gap-3">
+                  <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggleSheetSelection(name)}
+                    />
+                    <span className="text-sm truncate">{name}</span>
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Startrad:</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={sheetStartRows[name] ?? 14}
+                      disabled={!checked}
+                      onChange={(e) => {
+                        const v = Math.max(1, Math.min(60, parseInt(e.target.value) || 1));
+                        setSheetStartRows((prev) => ({ ...prev, [name]: v }));
+                      }}
+                      className="h-7 w-16 text-sm"
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
