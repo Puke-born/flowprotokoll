@@ -9,9 +9,6 @@ const COL_KEYS = [
 
 const MAX_ROWS = 36;
 const SCAN_LIMIT = 60;
-const HEADER_TEXTS = new Set([
-  "rum", "rumsnr", "rum nr", "nr", "rumsnummer", "rumnamn", "namn", "benämning",
-]);
 
 interface ImportedSheet {
   name: string;
@@ -30,18 +27,14 @@ function cellStr(ws: XLSX.WorkSheet, r: number, c: number): string {
   return cell && cell.v != null ? String(cell.v).trim() : "";
 }
 
-function isHeaderText(s: string): boolean {
-  return HEADER_TEXTS.has(s.toLowerCase());
-}
-
 function detectStartRow(ws: XLSX.WorkSheet): number {
-  // Find first row (1-indexed) where col A or B has data and is not a header label.
+  // Find row containing "Dontyp" header (any column), data starts on the next row.
   for (let r = 0; r < SCAN_LIMIT; r++) {
-    const a = cellStr(ws, r, 0);
-    const b = cellStr(ws, r, 1);
-    if (!a && !b) continue;
-    if (isHeaderText(a) || isHeaderText(b)) continue;
-    return r + 1; // 1-indexed
+    for (let c = 0; c < 10; c++) {
+      if (cellStr(ws, r, c).toLowerCase() === "dontyp") {
+        return r + 2; // 1-indexed row after the header
+      }
+    }
   }
   return 14;
 }
