@@ -12,7 +12,7 @@ import {
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import { exportAllSheets } from "@/lib/exportExcel";
-import { getSheetNames, importSheets } from "@/lib/importExcel";
+import { getSheetNames, importSheets, detectSheetStartRows } from "@/lib/importExcel";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -137,6 +137,7 @@ const Index = () => {
   const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
+  const [sheetStartRows, setSheetStartRows] = useState<Record<string, number>>({});
 
   // Cell coloring state
   const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
@@ -301,9 +302,11 @@ const Index = () => {
     reader.onload = (ev) => {
       const buffer = ev.target?.result as ArrayBuffer;
       const names = getSheetNames(buffer);
+      const detected = detectSheetStartRows(buffer, names);
       setImportFileBuffer(buffer);
       setAvailableSheetNames(names);
       setSelectedSheetNames(names); // select all by default
+      setSheetStartRows(detected);
       setImportDialogOpen(true);
     };
     reader.readAsArrayBuffer(file);
@@ -312,7 +315,7 @@ const Index = () => {
 
   const handleImportConfirm = useCallback(() => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
-    const imported = importSheets(importFileBuffer, selectedSheetNames);
+    const imported = importSheets(importFileBuffer, selectedSheetNames, sheetStartRows);
     const newSheets: Sheet[] = imported.map((s) => ({
       ...createEmptySheet(s.name),
       rows: s.rows,
@@ -337,7 +340,7 @@ const Index = () => {
     setImportDialogOpen(false);
     setImportFileBuffer(null);
     toast.success(`${newSheets.length} blad importerade`);
-  }, [importFileBuffer, selectedSheetNames]);
+  }, [importFileBuffer, selectedSheetNames, sheetStartRows]);
 
   const toggleSheetSelection = useCallback((name: string) => {
     setSelectedSheetNames((prev) =>
