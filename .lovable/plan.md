@@ -1,32 +1,37 @@
-## Mål
-Göra Excel-importen flexibel: hitta automatiskt var datan börjar på varje blad och läs rader tills datan tar slut (istället för låst rad 14–49). Användaren ska kunna justera startraden per blad i importdialogen innan importen bekräftas.
 
-## Ändringar
 
-### 1. `src/lib/importExcel.ts`
-- Lägg till `detectStartRow(ws)`: skanna rad 1–60 i kolumn A (`rum_nr`) och B (`rum_namn`). Returnera första raden där minst en av cellerna har innehåll och raden ovanför inte är en data‑rad (för att skippa rubriker som "Rum", "Nr" osv.). Fallback: rad 14.
-- Ny funktion `detectSheetStartRows(buffer, sheetNames)` som returnerar `{ [sheetName]: number }` (1‑baserade radnummer) — används för att fylla dialogen.
-- Uppdatera `importSheets` så den tar emot ett `startRows`‑objekt: `importSheets(buffer, sheetNames, startRows)`.
-- I `importSheets`: läs från `startRow - 1` (0‑indexerat) och framåt. Stoppa när en helt tom rad påträffas (alla 10 kolumner tomma) eller efter max 36 rader. Notes läses fortfarande från ett fast offset relativt slutet av blocket — alternativt: skanna efter texten "Anteckningar" / "Övrigt" nedanför sista data‑raden, annars hoppa över notes vid varierande layout. **Förslag:** behåll notes‑logiken oförändrad om startraden = 14, annars läs 1–5 rader direkt efter sista icke‑tomma data‑raden.
+## Cellfärgning — Uppdaterad plan
 
-### 2. `src/pages/Index.tsx`
-- Ny state: `sheetStartRows: Record<string, number>` (per bladnamn i dialogen).
-- I `handleFileSelect`: efter `getSheetNames`, anropa `detectSheetStartRows` och fyll `sheetStartRows`.
-- I importdialogen (rad 782–807): bredvid varje bladnamn‑checkbox lägg till ett litet `Input type="number"` (min=1, max=60) som visar/redigerar startraden. Inaktiverat om bladet inte är markerat.
-- I `handleImportConfirm`: skicka `sheetStartRows` till `importSheets`.
+### Knappens utseende
+En minimalistisk kvadratisk ruta (ingen ikon, ingen text) — ca 24×24px med rundade hörn och tunn kant. Färgen på rutan visar senast använda färg (default: `#fef9c3` gul). Klick öppnar en Popover med 6 färgrutor i en rad.
 
-### 3. UI‑detaljer i dialogen
+### Ändringar
+
+**1. `src/pages/Index.tsx`**
+- Ny state: `cellColorsMap` (Map<number, Record<string, Record<string, string>>>) — sheet → row → col → hex
+- Ny state: `selectedCell: { row: number; col: string } | null`
+- Ny state: `lastColor` (string, default `#fef9c3`)
+- Färgknapp som en enkel `<button>` med inline `backgroundColor` = `lastColor`, placerad efter "Ta bort blad"-knappen (rad 545), inuti en Popover
+- Popover-innehåll: 6 färgrutor (`transparent`, `#fef9c3`, `#bbf7d0`, `#bfdbfe`, `#fecaca`, `#fed7aa`) — klick applicerar på `selectedCell` och uppdaterar `lastColor`
+- "Vit/ingen" visas som vit ruta med streckad kant (för transparent)
+- Synka `cellColorsMap` i: `handleMoveSheet`, `handleRemoveSheet`, `handleClear`, `handleNewProtocol`, `handleSaveProject`, `handleLoadProject`, localStorage
+
+**2. `src/components/AirflowGrid.tsx`**
+- Nya props: `cellColors?: Record<string, Record<string, string>>`, `onCellSelect?: (row: number, colKey: string) => void`
+- `onFocus` → anropa `onCellSelect`
+- Inline `style={{ backgroundColor }}` från cellColors, med prioritet över importerad gul markering
+
+**3. `src/lib/exportExcel.ts`**
+- Ny parameter `cellColors` per sheet
+- Applicera XLSX cell fill-styling (`ws[ref].s = { fill: { fgColor: { rgb } } }`) på färgade celler
+- Använda `xlsx-js-style` eller SheetJS Pro-liknande approach för cell-styling
+
+### Visuellt
 ```text
-☑ Blad 1          Startrad: [ 14 ]
-☑ Offert 2025     Startrad: [ 17 ]
-☐ Mall            Startrad: [ 14 ]
+[Ta bort blad] [■]  ← liten färgad kvadrat, klickbar
+                 ↓
+              ┌──────────────────┐
+              │ ◻ 🟡 🟢 🔵 🔴 🟠 │  ← 6 färgrutor i popover
+              └──────────────────┘
 ```
-Liten hjälptext högst upp: "Startraden upptäcks automatiskt men kan justeras."
 
-## Tekniska detaljer
-- Auto‑detektering: en rad räknas som data‑rad om kolumn A eller B innehåller värde och värdet i A inte är en ren rubrik‑text ("Rum", "Rumsnr", "Nr"). Stoppvillkor i läsning: rad är tom i alla 10 datakolumner.
-- Max 36 rader behålls som hård gräns (matchar `NUM_ROWS` i Index.tsx).
-- Notes‑logik: enklast och säkrast — om startrad ≠ 14 hoppar vi över notes‑importen tills vidare (kan utökas senare). Bekräfta gärna om detta är okej.
-
-## Öppen fråga
-Är det okej att notes (raderna under tabellen) bara importeras när startrad = 14, eller ska vi också försöka hitta notes‑blocket automatiskt under data‑tabellen?
