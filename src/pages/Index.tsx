@@ -787,7 +787,7 @@ const Index = () => {
                       target: { value: allLines.slice(0, 5).join("\n") },
                     } as React.ChangeEvent<HTMLTextAreaElement>);
                   }}
-                  className="w-full h-9 px-2 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none border-b border-grid-border/40 last:border-b-0 block"
+                  className="w-full h-9 px-2 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none border-b border-black last:border-b-0 block"
                 />
               );
             })}

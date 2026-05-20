@@ -57,9 +57,12 @@ function buildSheet(sheet: Sheet, sidNr: string): (string | number | null)[][] {
     ]);
   }
 
-  wsData.push([]);
-  if (sheet.notes) {
-    wsData.push([sheet.notes]);
+  // Row 50 (index 49): title in A50
+  wsData.push(["Mätmetod och övriga upplysningar"]);
+  // Rows 51-55 (index 50-54): up to 5 note lines in A
+  const noteLines = (sheet.notes || "").split("\n");
+  for (let i = 0; i < 5; i++) {
+    wsData.push([noteLines[i] || null]);
   }
 
   return wsData;
