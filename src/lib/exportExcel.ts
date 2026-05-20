@@ -95,12 +95,6 @@ export function exportAllSheets(sheets: Sheet[], cellColorsPerSheet?: Record<str
       });
     }
 
-    // Merge notes rows A51:J51 through A55:J55 (indices 50-54, cols 0-9)
-    ws["!merges"] = ws["!merges"] || [];
-    for (let r = 50; r <= 54; r++) {
-      ws["!merges"].push({ s: { r, c: 0 }, e: { r, c: 9 } });
-    }
-
     const name = sheet.name || (total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`);
     XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
   });
