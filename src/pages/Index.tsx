@@ -771,41 +771,27 @@ const Index = () => {
           <div className="bg-grid-header px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Mätmetod och övriga upplysningar</span>
           </div>
-          <table className="w-full border-collapse table-fixed bg-grid-cell">
-            <tbody>
-              {Array.from({ length: 5 }).map((_, rowIdx) => {
-                const lines = (sheet.notes || "").split("\n");
-                const cells = (lines[rowIdx] || "").split("\t");
-                return (
-                  <tr key={rowIdx}>
-                    {Array.from({ length: 10 }).map((__, colIdx) => (
-                      <td
-                        key={colIdx}
-                        className="border-r border-b border-grid-border/30 last:border-r-0 p-0"
-                      >
-                        <input
-                          type="text"
-                          value={cells[colIdx] || ""}
-                          onChange={(e) => {
-                            const allLines = (sheet.notes || "").split("\n");
-                            while (allLines.length < 5) allLines.push("");
-                            const lineCells = (allLines[rowIdx] || "").split("\t");
-                            while (lineCells.length < 10) lineCells.push("");
-                            lineCells[colIdx] = e.target.value;
-                            allLines[rowIdx] = lineCells.join("\t");
-                            handleNotesChange({
-                              target: { value: allLines.slice(0, 5).join("\n") },
-                            } as React.ChangeEvent<HTMLTextAreaElement>);
-                          }}
-                          className="w-full h-9 px-2 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none"
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="bg-grid-cell">
+            {Array.from({ length: 5 }).map((_, rowIdx) => {
+              const lines = (sheet.notes || "").split("\n");
+              return (
+                <input
+                  key={rowIdx}
+                  type="text"
+                  value={lines[rowIdx] || ""}
+                  onChange={(e) => {
+                    const allLines = (sheet.notes || "").split("\n");
+                    while (allLines.length < 5) allLines.push("");
+                    allLines[rowIdx] = e.target.value;
+                    handleNotesChange({
+                      target: { value: allLines.slice(0, 5).join("\n") },
+                    } as React.ChangeEvent<HTMLTextAreaElement>);
+                  }}
+                  className="w-full h-9 px-2 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none border-b border-grid-border/40 last:border-b-0 block"
+                />
+              );
+            })}
+          </div>
         </div>
       </main>
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
