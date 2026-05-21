@@ -774,21 +774,34 @@ const Index = () => {
           <div className="bg-grid-cell">
             {Array.from({ length: 5 }).map((_, rowIdx) => {
               const lines = (sheet.notes || "").split("\n");
+              const cells = (lines[rowIdx] || "").split("\t");
               return (
-                <input
+                <div
                   key={rowIdx}
-                  type="text"
-                  value={lines[rowIdx] || ""}
-                  onChange={(e) => {
-                    const allLines = (sheet.notes || "").split("\n");
-                    while (allLines.length < 5) allLines.push("");
-                    allLines[rowIdx] = e.target.value;
-                    handleNotesChange({
-                      target: { value: allLines.slice(0, 5).join("\n") },
-                    } as React.ChangeEvent<HTMLTextAreaElement>);
-                  }}
-                  className="w-full h-9 px-2 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none border-b border-black last:border-b-0 block"
-                />
+                  className="grid grid-cols-10 border-b border-black last:border-b-0"
+                >
+                  {Array.from({ length: 10 }).map((_, colIdx) => (
+                    <input
+                      key={colIdx}
+                      type="text"
+                      value={cells[colIdx] || ""}
+                      onChange={(e) => {
+                        const allLines = (sheet.notes || "").split("\n");
+                        while (allLines.length < 5) allLines.push("");
+                        const rowCells = (allLines[rowIdx] || "").split("\t");
+                        while (rowCells.length < 10) rowCells.push("");
+                        rowCells[colIdx] = e.target.value.replace(/\t|\n/g, " ");
+                        allLines[rowIdx] = rowCells.slice(0, 10).join("\t").replace(/\t+$/, "");
+                        handleNotesChange({
+                          target: { value: allLines.slice(0, 5).join("\n") },
+                        } as React.ChangeEvent<HTMLTextAreaElement>);
+                      }}
+                      className={`w-full h-9 px-1 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none ${
+                        colIdx < 9 ? "border-r border-grid-border/30" : ""
+                      }`}
+                    />
+                  ))}
+                </div>
               );
             })}
           </div>
