@@ -62,7 +62,12 @@ function buildSheet(sheet: Sheet, sidNr: string): (string | number | null)[][] {
   // Rows 51-55 (index 50-54): up to 5 note lines in A
   const noteLines = (sheet.notes || "").split("\n");
   for (let i = 0; i < 5; i++) {
-    wsData.push([noteLines[i] || null]);
+    const cells = (noteLines[i] || "").split("\t");
+    const row: (string | null)[] = [];
+    for (let c = 0; c < 10; c++) {
+      row.push(cells[c] || null);
+    }
+    wsData.push(row);
   }
 
   return wsData;
