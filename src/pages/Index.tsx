@@ -783,9 +783,16 @@ const Index = () => {
                   {Array.from({ length: 10 }).map((_, colIdx) => (
                     <div
                       key={colIdx}
-                      className="relative h-9"
+                      className="relative h-9 focus-within:z-50"
                       style={{ zIndex: 10 - colIdx }}
                     >
+                      <div
+                        aria-hidden
+                        className="pointer-events-none absolute top-0 left-0 h-9 px-1 flex items-center text-sm font-mono whitespace-nowrap text-foreground"
+                        style={{ width: "max-content" }}
+                      >
+                        {cells[colIdx] || ""}
+                      </div>
                       <input
                         type="text"
                         value={cells[colIdx] || ""}
@@ -800,14 +807,7 @@ const Index = () => {
                             target: { value: allLines.slice(0, 5).join("\n") },
                           } as React.ChangeEvent<HTMLTextAreaElement>);
                         }}
-                        onFocus={(e) => {
-                          (e.currentTarget.parentElement as HTMLElement).style.zIndex = "50";
-                        }}
-                        onBlur={(e) => {
-                          (e.currentTarget.parentElement as HTMLElement).style.zIndex = String(10 - colIdx);
-                        }}
-                        className="absolute top-0 left-0 h-9 px-1 text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-background focus:ring-1 focus:ring-ring rounded-none"
-                        style={{ minWidth: "100%", width: "max-content" }}
+                        className="absolute top-0 left-0 h-9 w-full px-1 text-sm font-mono bg-transparent text-transparent caret-foreground focus:text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring rounded-none"
                       />
                     </div>
                   ))}
