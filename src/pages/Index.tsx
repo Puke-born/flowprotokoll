@@ -807,7 +807,12 @@ const Index = () => {
                             target: { value: allLines.slice(0, 5).join("\n") },
                           } as React.ChangeEvent<HTMLTextAreaElement>);
                         }}
-                        className="absolute top-0 left-0 h-9 w-full px-1 text-sm font-mono bg-transparent text-transparent caret-foreground focus:text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring rounded-none"
+                        style={{
+                          width: "max-content",
+                          minWidth: "100%",
+                          maxWidth: `${(10 - colIdx) * 100}%`,
+                        }}
+                        className="absolute top-0 left-0 h-9 px-1 text-sm font-mono bg-transparent text-transparent caret-foreground focus:text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring rounded-none"
                       />
                     </div>
                   ))}
