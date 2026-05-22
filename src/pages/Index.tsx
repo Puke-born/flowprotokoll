@@ -153,6 +153,29 @@ const Index = () => {
   const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
   const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove">(null);
 
+  // Anteckningsrutnät: fokuserad cell + mätt rad-bredd för dynamisk inputbredd
+  const [focusedNoteCell, setFocusedNoteCell] = useState<{ r: number; c: number } | null>(null);
+  const notesGridRef = useRef<HTMLDivElement>(null);
+  const [notesRowWidth, setNotesRowWidth] = useState(0);
+  useEffect(() => {
+    const el = notesGridRef.current;
+    if (!el) return;
+    const update = () => setNotesRowWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const measureNoteText = useCallback((text: string) => {
+    if (typeof document === "undefined") return 0;
+    const canvas = (measureNoteText as unknown as { _c?: HTMLCanvasElement })._c
+      ?? ((measureNoteText as unknown as { _c?: HTMLCanvasElement })._c = document.createElement("canvas"));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return 0;
+    ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+    return ctx.measureText(text).width;
+  }, []);
+
   const confirmConfig = {
     new: {
       title: "Skapa nytt protokoll?",
