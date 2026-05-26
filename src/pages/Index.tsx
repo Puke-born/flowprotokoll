@@ -808,7 +808,7 @@ const Index = () => {
                       focusedNoteCell?.r === rowIdx && focusedNoteCell?.c === colIdx;
                     const cellWidth = notesRowWidth / 10;
                     const maxWidth = notesRowWidth - colIdx * cellWidth;
-                    const textWidth = measureNoteText(cells[colIdx] || "") + 16;
+                    const textWidth = measureNoteText(cells[colIdx] || "") + 28;
                     const focusedWidth = Math.min(
                       Math.max(textWidth, cellWidth),
                       maxWidth || textWidth,
@@ -819,13 +819,15 @@ const Index = () => {
                       className="relative h-9 focus-within:z-50"
                       style={{ zIndex: 10 - colIdx }}
                     >
-                      <div
-                        aria-hidden
-                        className="pointer-events-none absolute top-0 left-0 h-9 px-1 flex items-center text-sm font-mono whitespace-nowrap text-foreground"
-                        style={{ width: "max-content" }}
-                      >
-                        {cells[colIdx] || ""}
-                      </div>
+                      {!isFocused && (
+                        <div
+                          aria-hidden
+                          className="pointer-events-none absolute top-0 left-0 h-9 px-1 flex items-center text-sm font-mono whitespace-nowrap text-foreground"
+                          style={{ width: "max-content" }}
+                        >
+                          {cells[colIdx] || ""}
+                        </div>
+                      )}
                       <input
                         type="text"
                         value={cells[colIdx] || ""}
