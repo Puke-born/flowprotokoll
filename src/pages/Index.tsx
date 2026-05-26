@@ -173,7 +173,7 @@ const Index = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return 0;
     ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-    return ctx.measureText(text).width;
+    return Math.ceil(ctx.measureText(text).width);
   }, []);
 
   const confirmConfig = {
