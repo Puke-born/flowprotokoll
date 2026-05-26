@@ -157,6 +157,9 @@ const Index = () => {
   const [focusedNoteCell, setFocusedNoteCell] = useState<{ r: number; c: number } | null>(null);
   const notesGridRef = useRef<HTMLDivElement>(null);
   const [notesRowWidth, setNotesRowWidth] = useState(0);
+  const noteInputsRef = useRef<(HTMLInputElement | null)[][]>(
+    Array.from({ length: 5 }, () => Array(10).fill(null)),
+  );
   useEffect(() => {
     const el = notesGridRef.current;
     if (!el) return;
