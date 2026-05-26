@@ -157,6 +157,9 @@ const Index = () => {
   const [focusedNoteCell, setFocusedNoteCell] = useState<{ r: number; c: number } | null>(null);
   const notesGridRef = useRef<HTMLDivElement>(null);
   const [notesRowWidth, setNotesRowWidth] = useState(0);
+  const noteInputsRef = useRef<(HTMLInputElement | null)[][]>(
+    Array.from({ length: 5 }, () => Array(10).fill(null)),
+  );
   useEffect(() => {
     const el = notesGridRef.current;
     if (!el) return;
@@ -790,7 +793,7 @@ const Index = () => {
           onCellSelect={handleCellSelect}
           onRowReorder={handleRowReorder}
         />
-        <div className="rounded-lg border border-grid-border shadow-sm overflow-hidden">
+        <div className="rounded-lg border border-grid-border shadow-sm overflow-visible">
           <div className="bg-grid-header px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Mätmetod och övriga upplysningar</span>
           </div>
@@ -807,12 +810,8 @@ const Index = () => {
                     const isFocused =
                       focusedNoteCell?.r === rowIdx && focusedNoteCell?.c === colIdx;
                     const cellWidth = notesRowWidth / 10;
-                    const maxWidth = notesRowWidth - colIdx * cellWidth;
                     const textWidth = measureNoteText(cells[colIdx] || "") + 28;
-                    const focusedWidth = Math.min(
-                      Math.max(textWidth, cellWidth),
-                      maxWidth || textWidth,
-                    );
+                    const focusedWidth = Math.max(textWidth, cellWidth);
                     return (
                     <div
                       key={colIdx}
@@ -830,6 +829,9 @@ const Index = () => {
                       )}
                       <input
                         type="text"
+                        ref={(el) => {
+                          noteInputsRef.current[rowIdx][colIdx] = el;
+                        }}
                         value={cells[colIdx] || ""}
                         onChange={(e) => {
                           const allLines = (sheet.notes || "").split("\n");
@@ -846,6 +848,31 @@ const Index = () => {
                         onBlur={() => setFocusedNoteCell((cur) =>
                           cur?.r === rowIdx && cur?.c === colIdx ? null : cur,
                         )}
+                        onKeyDown={(e) => {
+                          const input = e.currentTarget;
+                          const atStart = input.selectionStart === 0 && input.selectionEnd === 0;
+                          const atEnd =
+                            input.selectionStart === input.value.length &&
+                            input.selectionEnd === input.value.length;
+                          let nr = rowIdx;
+                          let nc = colIdx;
+                          if (e.key === "ArrowUp") nr = rowIdx - 1;
+                          else if (e.key === "ArrowDown" || e.key === "Enter") nr = rowIdx + 1;
+                          else if (e.key === "ArrowLeft" && atStart) nc = colIdx - 1;
+                          else if (e.key === "ArrowRight" && atEnd) nc = colIdx + 1;
+                          else if (e.key === "Tab") {
+                            nc = colIdx + (e.shiftKey ? -1 : 1);
+                            if (nc < 0) { nc = 9; nr = rowIdx - 1; }
+                            else if (nc > 9) { nc = 0; nr = rowIdx + 1; }
+                          } else return;
+                          if (nr < 0 || nr > 4 || nc < 0 || nc > 9) return;
+                          const next = noteInputsRef.current[nr]?.[nc];
+                          if (next) {
+                            e.preventDefault();
+                            next.focus();
+                            next.select();
+                          }
+                        }}
                         style={
                           isFocused
                             ? { width: `${focusedWidth}px` }
