@@ -1,37 +1,33 @@
 ## Problem
 
-`width: max-content` fungerar inte på `<input>` — inputs har en intrinsisk bredd (baserad på `size`-attributet) och shrink-wrappar inte sitt textinnehåll som ett `<div>` gör. Därför stannar inputen kvar på `minWidth: 100%` (en cellbredd) även när texten är längre, och fokus visar bara en cell.
+Vid fokus i en cell i anteckningsrutnätet kan inputens expanderade bredd (samt overlay-textens `width: max-content`) sticka ut förbi rutnätets högra ytterkant. Användaren vill att text aldrig syns utanför rutnätets ytterkanter.
 
 ## Lösning
 
-Mät den faktiska textbredden och sätt inputens `width` explicit när cellen är fokuserad.
+Begränsa expansionen till rutnätets återstående bredd och klipp av allt som ligger utanför raden.
 
-### Ändringar i `src/pages/Index.tsx` (anteckningsrutnätet, ~rad 783–818)
+### Ändringar i `src/pages/Index.tsx` (anteckningsrutnätet, ~rad 796–890)
 
-1. **Lokal `focusedCell`-state** i komponenten: `{ r: number; c: number } | null`. Sätts på `onFocus`, nollas på `onBlur`.
+1. **Cappa `focusedWidth` till resterande gridbredd**
+   - Beräkna `remainingWidth = notesRowWidth - colIdx * cellWidth`.
+   - `focusedWidth = Math.min(Math.max(textWidth, cellWidth), remainingWidth)`.
+   - Då kan en fokuserad cell högst expandera till högerkanten av rutnätet, aldrig utanför.
 
-2. **Mät textbredd via dolt span eller canvas**:
-   - Skapa en hjälpfunktion `measureText(text: string)` som använder en återanvänd `CanvasRenderingContext2D` (`document.createElement("canvas").getContext("2d")`) med samma font som inputen (`text-sm font-mono` → t.ex. `13px "JetBrains Mono", monospace`).
-   - Alternativ: dolt `<span>` med samma typografi som befintlig overlay-`div` och läs `offsetWidth` via en ref.
+2. **Klipp av varje rad vid ytterkanterna**
+   - På rad-`div` (`grid grid-cols-10 ...`): lägg till `overflow-hidden`.
+   - Det hindrar både den fokuserade inputens högerkant och den icke-fokuserade overlay-textens (`width: max-content`) från att synas utanför sista kolumnen.
+   - `focus-within:z-50` på cellen är fortfarande relevant för att täcka celler till höger i samma rad.
 
-3. **Sätt inputens bredd dynamiskt**:
-   - När `focusedCell` matchar `{r: rowIdx, c: colIdx}`, beräkna `desiredPx = measureText(cells[colIdx] || "") + paddingPx (≈ 12)`.
-   - Inputens `style.width` blir `max(desiredPx, cellWidthPx)` capped till resterande gridbredd.
-   - För att veta cell- och gridbredd i pixlar: håll en `ref` på rad-containern (`grid grid-cols-10`); läs `clientWidth` i en `useLayoutEffect` (eller `ResizeObserver`) → `cellWidthPx = rowWidth / 10`, `maxWidthPx = rowWidth - colIdx * cellWidthPx`.
-   - När cellen INTE är fokuserad: behåll nuvarande `width: 100%` av cellen (overlay-`div` sköter visuell overflow).
+3. **Yttre container**
+   - Ytterramen `<div className="rounded-lg border ... overflow-visible">` kan ligga kvar som `overflow-visible` (eller bytas till `overflow-hidden` — funktionellt samma eftersom raderna nu klipper själva). Förslag: behåll som den är för att inte påverka eventuell focus-ring vertikalt.
 
-4. **Uppdatera bredd även medan användaren skriver**: i `onChange`-handlern, efter state-uppdateringen, räkna om bredden (lättast: härled från `e.target.value` direkt i samma render eftersom `cells[colIdx]` kommer uppdateras nästa render — en `useEffect` på `sheet.notes` + `focusedCell` triggar omberäkning).
+4. **Inga ändringar i piltangentnavigering, datamodell eller Excel-export.**
 
-5. **Bevara z-index/bakgrund**: `focus-within:z-50` + `focus:bg-background` lämnas oförändrat så den expanderade inputen täcker tomma celler till höger.
+### Effekter
 
-### Tekniska detaljer
-
-- Font för mätning: matcha exakt `text-sm` (14px om default, men `md:text-sm` på Input — här används `text-sm` direkt = 14px) och `font-mono` (Tailwind `ui-monospace, SFMono-Regular, ...`). Säkraste: läs `getComputedStyle(input)` på en monterad input vid första mätning och cacha font-strängen.
-- Padding: `px-1` = 4px vänster + 4px höger = 8px, plus liten buffert för caret → använd 12px.
-- Canvas-mätning är synkron och billig; ok att köra varje render för fokuserad cell.
+- Skriver man en lång text i sista kolumnen växer cellen inte alls (remainingWidth = cellWidth). Texten scrollas då internt i inputen från höger som standard. Detta är en medveten kompromiss — alternativet (texten sticker ut) är det användaren just bad oss undvika.
+- I tidigare kolumner expanderar cellen så långt som möjligt fram till högerkanten och klipps där.
 
 ### Filer
 
-- `src/pages/Index.tsx` — lägg till `focusedCell`-state, mät-hjälpare, row-`ref`, och dynamisk `style.width` på inputen i anteckningsrutnätet. Inga andra filer.
-
-Inga ändringar i datamodell eller Excel-export.
+- `src/pages/Index.tsx` — enbart.
