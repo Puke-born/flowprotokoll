@@ -38,19 +38,19 @@ export function importSheets(file: ArrayBuffer, sheetNames: string[]): ImportedS
       rows.push(row);
     }
 
-    // Read notes from rows 51-55 (0-indexed: 50-54)
-    const noteParts: string[] = [];
+    // Read notes from rows 51-55 (0-indexed: 50-54), preserving column layout via tabs
+    const noteLines: string[] = [];
     for (let r = 50; r < 55; r++) {
       const lineParts: string[] = [];
       for (let c = 0; c < 10; c++) {
         const addr = XLSX.utils.encode_cell({ r, c });
         const cell = ws[addr];
-        if (cell && cell.v != null) lineParts.push(String(cell.v));
+        lineParts.push(cell && cell.v != null ? String(cell.v).replace(/\t|\n/g, " ") : "");
       }
-      const line = lineParts.join(" ").trim();
-      if (line) noteParts.push(line);
+      noteLines.push(lineParts.join("\t").replace(/\t+$/, ""));
     }
+    while (noteLines.length && noteLines[noteLines.length - 1] === "") noteLines.pop();
 
-    return { name, rows, notes: noteParts.join("\n") };
+    return { name, rows, notes: noteLines.join("\n") };
   });
 }
