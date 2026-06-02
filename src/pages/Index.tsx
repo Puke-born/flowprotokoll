@@ -804,14 +804,15 @@ const Index = () => {
               return (
                 <div
                   key={rowIdx}
-                  className="grid grid-cols-10 border-b border-black last:border-b-0 relative"
+                  className="grid grid-cols-10 border-b border-black last:border-b-0 relative overflow-hidden"
                 >
                   {Array.from({ length: 10 }).map((_, colIdx) => {
                     const isFocused =
                       focusedNoteCell?.r === rowIdx && focusedNoteCell?.c === colIdx;
                     const cellWidth = notesRowWidth / 10;
                     const textWidth = measureNoteText(cells[colIdx] || "") + 28;
-                    const focusedWidth = Math.max(textWidth, cellWidth);
+                    const remainingWidth = notesRowWidth - colIdx * cellWidth;
+                    const focusedWidth = Math.min(Math.max(textWidth, cellWidth), remainingWidth);
                     return (
                     <div
                       key={colIdx}
