@@ -71,18 +71,6 @@ const CELL_COLORS_KEY = "lfp-cell-colors";
 const LAST_COLOR_KEY = "lfp-last-color";
 const FORMULA_BAR_KEY = "lfp-formula-bar-open";
 
-const GRID_COL_KEYS = [
-  "rum_nr",
-  "rum_namn",
-  "tilluft_dontyp",
-  "tilluft_inst",
-  "tilluft_beraknat",
-  "tilluft_uppmat",
-  "franluft_dontyp",
-  "franluft_inst",
-  "franluft_beraknat",
-  "franluft_uppmat",
-] as const;
 
 type ActiveCell =
   | { source: "grid"; row: number; col: string }
