@@ -71,18 +71,6 @@ const CELL_COLORS_KEY = "lfp-cell-colors";
 const LAST_COLOR_KEY = "lfp-last-color";
 const FORMULA_BAR_KEY = "lfp-formula-bar-open";
 
-const GRID_COL_KEYS = [
-  "rum_nr",
-  "rum_namn",
-  "tilluft_dontyp",
-  "tilluft_inst",
-  "tilluft_beraknat",
-  "tilluft_uppmat",
-  "franluft_dontyp",
-  "franluft_inst",
-  "franluft_beraknat",
-  "franluft_uppmat",
-] as const;
 
 type ActiveCell =
   | { source: "grid"; row: number; col: string }
@@ -713,6 +701,15 @@ const Index = () => {
               <Upload className="w-4 h-4" />
               Export
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => setFormulaBarOpen((v) => !v)}
+              title={formulaBarOpen ? "Dölj formelfält" : "Visa formelfält"}
+            >
+              {formulaBarOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
           </div>
 
           {/* Mobile: Export button + dropdown menu */}
@@ -720,6 +717,15 @@ const Index = () => {
             <Button size="sm" onClick={handleExport} className="gap-1.5">
               <Upload className="w-4 h-4" />
               Export
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={() => setFormulaBarOpen((v) => !v)}
+              title={formulaBarOpen ? "Dölj formelfält" : "Visa formelfält"}
+            >
+              {formulaBarOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -755,87 +761,64 @@ const Index = () => {
           </div>
         </div>
         {/* Formelfält */}
-        <div className="border-t border-border bg-card">
-          <div className="max-w-5xl mx-auto px-4 py-1.5 flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0"
-              onClick={() => setFormulaBarOpen((v) => !v)}
-              title={formulaBarOpen ? "Dölj formelfält" : "Visa formelfält"}
-            >
-              {formulaBarOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </Button>
-            {formulaBarOpen && (
-              <>
-                <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground bg-muted rounded px-2 py-1 min-w-[56px] text-center shrink-0">
-                  {(() => {
-                    if (!activeCell) return "—";
-                    if (activeCell.source === "grid") {
-                      const idx = GRID_COL_KEYS.indexOf(activeCell.col as typeof GRID_COL_KEYS[number]);
-                      const letter = idx >= 0 ? String.fromCharCode(65 + idx) : "?";
-                      return `${letter}${activeCell.row + 14}`;
-                    }
-                    return `N${activeCell.r + 1}:${String.fromCharCode(65 + activeCell.c)}`;
-                  })()}
-                </div>
-                <div className="text-[10px] font-mono italic text-muted-foreground shrink-0">fx</div>
-                <Input
-                  value={(() => {
-                    if (!activeCell) return "";
-                    if (activeCell.source === "grid") {
-                      return sheet.rows[activeCell.row]?.[activeCell.col] || "";
-                    }
-                    const lines = (sheet.notes || "").split("\n");
-                    return ((lines[activeCell.r] || "").split("\t")[activeCell.c]) || "";
-                  })()}
-                  onChange={(e) => {
-                    if (!activeCell) return;
-                    if (activeCell.source === "grid") {
-                      handleCellChange(activeCell.row, activeCell.col, e.target.value);
-                    } else {
-                      writeNoteCell(activeCell.r, activeCell.c, e.target.value);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      (e.currentTarget as HTMLInputElement).blur();
-                    }
-                  }}
-                  disabled={!activeCell}
-                  placeholder={activeCell ? "" : "Markera en cell"}
-                  className="h-8 text-sm font-mono flex-1"
-                />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="w-7 h-7 rounded border border-border shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0"
-                      style={{ backgroundColor: lastColor }}
-                      title="Cellfärg"
-                      onClick={() => handleApplyColor(lastColor)}
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-2" side="bottom" align="end">
-                    <div className="flex gap-1.5">
-                      {COLOR_PALETTE.map((c) => (
-                        <button
-                          key={c.hex}
-                          onClick={() => handleApplyColor(c.hex)}
-                          title={c.label}
-                          className={`w-6 h-6 rounded border shadow-sm cursor-pointer hover:scale-110 transition-transform ${
-                            c.hex === "transparent" ? "border-dashed border-muted-foreground bg-white" : "border-border"
-                          }`}
-                          style={c.hex !== "transparent" ? { backgroundColor: c.hex } : undefined}
-                        />
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </>
-            )}
+        {formulaBarOpen && (
+          <div className="border-t border-border bg-card">
+            <div className="max-w-5xl mx-auto px-4 py-1.5 flex items-center gap-2">
+              <Input
+                value={(() => {
+                  if (!activeCell) return "";
+                  if (activeCell.source === "grid") {
+                    return sheet.rows[activeCell.row]?.[activeCell.col] || "";
+                  }
+                  const lines = (sheet.notes || "").split("\n");
+                  return ((lines[activeCell.r] || "").split("\t")[activeCell.c]) || "";
+                })()}
+                onChange={(e) => {
+                  if (!activeCell) return;
+                  if (activeCell.source === "grid") {
+                    handleCellChange(activeCell.row, activeCell.col, e.target.value);
+                  } else {
+                    writeNoteCell(activeCell.r, activeCell.c, e.target.value);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
+                }}
+                disabled={!activeCell}
+                placeholder={activeCell ? "" : "Markera en cell"}
+                className="h-8 text-sm font-mono flex-1"
+              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-7 h-7 rounded border border-border shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0"
+                    style={{ backgroundColor: lastColor }}
+                    title="Cellfärg"
+                    onClick={() => handleApplyColor(lastColor)}
+                  />
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2" side="bottom" align="end">
+                  <div className="flex gap-1.5">
+                    {COLOR_PALETTE.map((c) => (
+                      <button
+                        key={c.hex}
+                        onClick={() => handleApplyColor(c.hex)}
+                        title={c.label}
+                        className={`w-6 h-6 rounded border shadow-sm cursor-pointer hover:scale-110 transition-transform ${
+                          c.hex === "transparent" ? "border-dashed border-muted-foreground bg-white" : "border-border"
+                        }`}
+                        style={c.hex !== "transparent" ? { backgroundColor: c.hex } : undefined}
+                      />
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* Content */}
