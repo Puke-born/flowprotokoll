@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, Pencil, FilePlus2, Save, FolderOpen, MoreVertical } from "lucide-react";
+import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, FilePlus2, Save, FolderOpen, MoreVertical } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,6 +69,25 @@ const STORAGE_KEY = "lfp-protocol-data";
 const IMPORTED_CELLS_KEY = "lfp-imported-cells";
 const CELL_COLORS_KEY = "lfp-cell-colors";
 const LAST_COLOR_KEY = "lfp-last-color";
+const FORMULA_BAR_KEY = "lfp-formula-bar-open";
+
+const GRID_COL_KEYS = [
+  "rum_nr",
+  "rum_namn",
+  "tilluft_dontyp",
+  "tilluft_inst",
+  "tilluft_beraknat",
+  "tilluft_uppmat",
+  "franluft_dontyp",
+  "franluft_inst",
+  "franluft_beraknat",
+  "franluft_uppmat",
+] as const;
+
+type ActiveCell =
+  | { source: "grid"; row: number; col: string }
+  | { source: "notes"; r: number; c: number }
+  | null;
 
 const COLOR_PALETTE = [
   { hex: "transparent", label: "Ingen" },
@@ -152,6 +171,14 @@ const Index = () => {
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
   const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
   const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove">(null);
+  const [activeCell, setActiveCell] = useState<ActiveCell>(null);
+  const [formulaBarOpen, setFormulaBarOpen] = useState(() => {
+    const v = localStorage.getItem(FORMULA_BAR_KEY);
+    return v === null ? true : v === "1";
+  });
+  useEffect(() => {
+    localStorage.setItem(FORMULA_BAR_KEY, formulaBarOpen ? "1" : "0");
+  }, [formulaBarOpen]);
 
   // Anteckningsrutnät: fokuserad cell + mätt rad-bredd för dynamisk inputbredd
   const [focusedNoteCell, setFocusedNoteCell] = useState<{ r: number; c: number } | null>(null);
@@ -575,6 +602,7 @@ const Index = () => {
 
   const handleCellSelect = useCallback((row: number, colKey: string) => {
     setSelectedCell({ row, col: colKey });
+    setActiveCell({ source: "grid", row, col: colKey });
   }, []);
 
   const handleRowReorder = useCallback((fromIndex: number, toIndex: number) => {
