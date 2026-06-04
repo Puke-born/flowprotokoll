@@ -887,7 +887,10 @@ const Index = () => {
                             target: { value: allLines.slice(0, 5).join("\n") },
                           } as React.ChangeEvent<HTMLTextAreaElement>);
                         }}
-                        onFocus={() => setFocusedNoteCell({ r: rowIdx, c: colIdx })}
+                        onFocus={() => {
+                          setFocusedNoteCell({ r: rowIdx, c: colIdx });
+                          setActiveCell({ source: "notes", r: rowIdx, c: colIdx });
+                        }}
                         onBlur={() => setFocusedNoteCell((cur) =>
                           cur?.r === rowIdx && cur?.c === colIdx ? null : cur,
                         )}
