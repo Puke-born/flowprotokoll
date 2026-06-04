@@ -1,33 +1,46 @@
-## Problem
+## Mål
 
-Vid fokus i en cell i anteckningsrutnätet kan inputens expanderade bredd (samt overlay-textens `width: max-content`) sticka ut förbi rutnätets högra ytterkant. Användaren vill att text aldrig syns utanför rutnätets ytterkanter.
+Lägg till ett alltid synligt "formelfält" (likt Excel) direkt under knappraden, som visar och låter dig redigera värdet i den markerade cellen. Flytta cellfärg-knappen till höger om formelfältet så den följer med när man scrollar.
 
-## Lösning
+## UI
 
-Begränsa expansionen till rutnätets återstående bredd och klipp av allt som ligger utanför raden.
+Ny sticky rad direkt under den befintliga sticky-headern i `src/pages/Index.tsx`:
 
-### Ändringar i `src/pages/Index.tsx` (anteckningsrutnätet, ~rad 796–890)
+```text
+[ fx ▸ ]  [ cellref ]  [ ───────── värde i markerad cell ───────── ]  [ 🎨 ]
+```
 
-1. **Cappa `focusedWidth` till resterande gridbredd**
-   - Beräkna `remainingWidth = notesRowWidth - colIdx * cellWidth`.
-   - `focusedWidth = Math.min(Math.max(textWidth, cellWidth), remainingWidth)`.
-   - Då kan en fokuserad cell högst expandera till högerkanten av rutnätet, aldrig utanför.
+- Vänster: liten kollaps-knapp (ChevronUp/ChevronDown-ikon) som döljer/visar fältet. När dolt: bara en smal knapp kvar att fälla ut igen.
+- Cellreferens-chip: kort etikett som visar vilken cell som är markerad, t.ex. `B14` för luftflödesrutnätet (kolumnbokstav A–J + radnummer 14–49) eller `N R2C5` för anteckningsrutnätet.
+- Input: full bredd, läser/skriver värdet i den markerade cellen i realtid. Enter flyttar fokus tillbaka till cellen i rutnätet.
+- Höger: befintliga `Popover` med färgknappen flyttas hit från `flex items-center gap-2 flex-wrap`-raden längre ned. Färgknappen agerar fortfarande mot `selectedCell` (luftflödesrutnätet) precis som idag.
 
-2. **Klipp av varje rad vid ytterkanterna**
-   - På rad-`div` (`grid grid-cols-10 ...`): lägg till `overflow-hidden`.
-   - Det hindrar både den fokuserade inputens högerkant och den icke-fokuserade overlay-textens (`width: max-content`) från att synas utanför sista kolumnen.
-   - `focus-within:z-50` på cellen är fortfarande relevant för att täcka celler till höger i samma rad.
+Sticky-beteende: wrappa formelraden i en `sticky top-[Npx]` direkt efter `<header>` så den ligger kvar synligt vid scroll, ihop med toppmenyn.
 
-3. **Yttre container**
-   - Ytterramen `<div className="rounded-lg border ... overflow-visible">` kan ligga kvar som `overflow-visible` (eller bytas till `overflow-hidden` — funktionellt samma eftersom raderna nu klipper själva). Förslag: behåll som den är för att inte påverka eventuell focus-ring vertikalt.
+## Datakoppling
 
-4. **Inga ändringar i piltangentnavigering, datamodell eller Excel-export.**
+- Ny state `activeCell` av typen `{ source: "grid"; row: number; col: string } | { source: "notes"; r: number; c: number } | null`.
+- Sätts via `onCellSelect` i `AirflowGrid` (befintlig callback) och via `onFocus` i anteckningsrutnätet (där `focusedNoteCell` redan sätts).
+- För synk med befintliga features: när `activeCell.source === "grid"` sätts även `selectedCell` (så färgknappen fungerar). När `activeCell.source === "notes"` sätts även `focusedNoteCell`.
+- Formelfältets värde:
+  - grid: `sheets[activeSheet].rows[row][col]`
+  - notes: cell `(r,c)` extraherad ur `sheet.notes` (samma `split("\n")` / `split("\t")`-logik som idag).
+- Ändring i formelfältet skriver tillbaka via `handleCellChange` resp. samma notes-uppdaterings-funktion som inputarna i anteckningsrutnätet.
+- Tomt fält när inget är markerat; placeholdern säger "Markera en cell".
 
-### Effekter
+## Flytt av färgknappen
 
-- Skriver man en lång text i sista kolumnen växer cellen inte alls (remainingWidth = cellWidth). Texten scrollas då internt i inputen från höger som standard. Detta är en medveten kompromiss — alternativet (texten sticker ut) är det användaren just bad oss undvika.
-- I tidigare kolumner expanderar cellen så långt som möjligt fram till högerkanten och klipps där.
+- Ta bort `<div className="ml-auto"> ... Popover ... </div>` från bladhanterings-raden (rad ~758–784).
+- Återanvänd samma `Popover` + `COLOR_PALETTE`-markup i formelradens högerkant.
+- Beteendet (`handleApplyColor`, `lastColor`) lämnas oförändrat.
 
-### Filer
+## Kollaps-toggle
 
-- `src/pages/Index.tsx` — enbart.
+- Ny state `formulaBarOpen` (default `true`, persistera ev. i localStorage under nyckel `lfp-formula-bar-open` — valfritt, lägger till om enkelt).
+- När `false`: visa bara en tunn rad med chevron-knapp som öppnar igen. Färgknappen följer också med och göms (alternativt: visa alltid färgknappen även när fältet är kollapsat — föreslår att gömma den med fältet eftersom användaren bad om "ligger till höger om formelfältet").
+
+## Filer som ändras
+
+- `src/pages/Index.tsx` — ny formelrad, ny `activeCell`-state, flytt av Popover, små justeringar i `onCellSelect`/notes-`onFocus`.
+
+Inga ändringar i `AirflowGrid.tsx`, datamodell, import eller export.
