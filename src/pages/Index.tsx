@@ -287,6 +287,20 @@ const Index = () => {
     });
   }, [activeSheet]);
 
+  const writeNoteCell = useCallback((r: number, c: number, v: string) => {
+    setSheets((prev) => {
+      const next = [...prev];
+      const allLines = (next[activeSheet].notes || "").split("\n");
+      while (allLines.length < 5) allLines.push("");
+      const rowCells = (allLines[r] || "").split("\t");
+      while (rowCells.length < 10) rowCells.push("");
+      rowCells[c] = v.replace(/\t|\n/g, " ");
+      allLines[r] = rowCells.slice(0, 10).join("\t").replace(/\t+$/, "");
+      next[activeSheet] = { ...next[activeSheet], notes: allLines.slice(0, 5).join("\n") };
+      return next;
+    });
+  }, [activeSheet]);
+
   const handleAddSheet = useCallback(() => {
     setSheets((prev) => {
       const newName = `Blad ${prev.length + 1}`;
