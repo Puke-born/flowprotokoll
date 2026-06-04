@@ -730,6 +730,15 @@ const Index = () => {
               <Upload className="w-4 h-4" />
               Export
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={() => setFormulaBarOpen((v) => !v)}
+              title={formulaBarOpen ? "Dölj formelfält" : "Visa formelfält"}
+            >
+              {formulaBarOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" className="h-9 w-9">
