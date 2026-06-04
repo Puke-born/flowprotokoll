@@ -797,33 +797,6 @@ const Index = () => {
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Ta bort blad</span>
           </Button>
-          <div className="ml-auto">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  className="w-6 h-6 rounded border border-border shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                  style={{ backgroundColor: lastColor }}
-                  title="Cellfärg"
-                  onClick={() => handleApplyColor(lastColor)}
-                />
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-2" side="bottom" align="end">
-                <div className="flex gap-1.5">
-                  {COLOR_PALETTE.map((c) => (
-                    <button
-                      key={c.hex}
-                      onClick={() => handleApplyColor(c.hex)}
-                      title={c.label}
-                      className={`w-6 h-6 rounded border shadow-sm cursor-pointer hover:scale-110 transition-transform ${
-                        c.hex === "transparent" ? "border-dashed border-muted-foreground bg-white" : "border-border"
-                      }`}
-                      style={c.hex !== "transparent" ? { backgroundColor: c.hex } : undefined}
-                    />
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
         </div>
 
         <ProtocolHeader fields={headerFields} />
