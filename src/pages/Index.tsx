@@ -190,7 +190,7 @@ const Index = () => {
       ?? ((measureNoteText as unknown as { _c?: HTMLCanvasElement })._c = document.createElement("canvas"));
     const ctx = canvas.getContext("2d");
     if (!ctx) return 0;
-    ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+    ctx.font = '13px Arial, Helvetica, sans-serif';
     return Math.ceil(ctx.measureText(text).width);
   }, []);
 
