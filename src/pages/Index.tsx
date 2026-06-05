@@ -873,7 +873,14 @@ const Index = () => {
           onCellSelect={handleCellSelect}
           onRowReorder={handleRowReorder}
         />
-        <div className="rounded-lg border border-grid-border shadow-sm overflow-visible">
+        <style>{`
+          @media print {
+            .notes-grid-wrapper { width: 640px; }
+            .notes-grid-row { height: 21px !important; }
+            .notes-grid-cell, .notes-grid-cell input, .notes-grid-cell .notes-overlay { height: 21px !important; }
+          }
+        `}</style>
+        <div className="rounded-lg border border-grid-border shadow-sm overflow-visible notes-grid-wrapper">
           <div className="bg-grid-header px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Mätmetod och övriga upplysningar</span>
           </div>
@@ -884,7 +891,7 @@ const Index = () => {
               return (
                 <div
                   key={rowIdx}
-                  className="grid grid-cols-10 border-b border-black last:border-b-0 relative overflow-hidden"
+                  className="notes-grid-row grid grid-cols-10 border-b border-black last:border-b-0 relative overflow-hidden"
                 >
                   {Array.from({ length: 10 }).map((_, colIdx) => {
                     const isFocused =
@@ -893,17 +900,25 @@ const Index = () => {
                     const textWidth = measureNoteText(cells[colIdx] || "") + 28;
                     const remainingWidth = notesRowWidth - colIdx * cellWidth;
                     const focusedWidth = Math.min(Math.max(textWidth, cellWidth), remainingWidth);
+                    const nextHasText = !!(cells[colIdx + 1] && cells[colIdx + 1].trim());
                     return (
                     <div
                       key={colIdx}
-                      className="relative h-9 focus-within:z-50"
+                      className="notes-grid-cell relative h-[26px] focus-within:z-50 overflow-visible"
                       style={{ zIndex: 10 - colIdx }}
                     >
                       {!isFocused && (
                         <div
                           aria-hidden
-                          className="pointer-events-none absolute top-0 left-0 h-9 px-1 flex items-center text-sm font-mono whitespace-nowrap text-foreground"
-                          style={{ width: "max-content" }}
+                          className="notes-overlay pointer-events-none absolute top-0 left-0 h-[26px] px-1 flex items-center whitespace-nowrap text-foreground"
+                          style={{
+                            width: "max-content",
+                            maxWidth: nextHasText ? "100%" : undefined,
+                            overflow: nextHasText ? "hidden" : "visible",
+                            fontFamily: 'Arial, Helvetica, sans-serif',
+                            fontSize: '13px',
+                            lineHeight: 1.1,
+                          }}
                         >
                           {cells[colIdx] || ""}
                         </div>
@@ -959,10 +974,10 @@ const Index = () => {
                         }}
                         style={
                           isFocused
-                            ? { width: `${focusedWidth}px` }
-                            : { width: "100%" }
+                            ? { width: `${focusedWidth}px`, fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '13px', lineHeight: 1.1 }
+                            : { width: "100%", fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '13px', lineHeight: 1.1 }
                         }
-                        className="absolute top-0 left-0 h-9 px-1 text-sm font-mono bg-transparent text-transparent caret-foreground focus:text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring rounded-none"
+                        className="absolute top-0 left-0 h-[26px] px-1 bg-transparent text-transparent caret-foreground focus:text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring rounded-none"
                       />
                     </div>
                     );
