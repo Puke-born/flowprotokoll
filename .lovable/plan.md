@@ -1,46 +1,46 @@
 ## Mål
 
-Lägg till ett alltid synligt "formelfält" (likt Excel) direkt under knappraden, som visar och låter dig redigera värdet i den markerade cellen. Flytta cellfärg-knappen till höger om formelfältet så den följer med när man scrollar.
+Få anteckningsrutnätet "Mätmetod och övriga upplysningar" att visa texten lika tydligt som i Excel, anpassat både för surfplatta och A4-utskrift. Excel-referens: 10 kolumner × 64 px bred, 5 rader × 21 px hög, Arial 10 pt.
 
-## UI
+## Problem idag
 
-Ny sticky rad direkt under den befintliga sticky-headern i `src/pages/Index.tsx`:
+I `src/pages/Index.tsx` (raderna ~880–973) renderas anteckningsrutnätet med:
 
-```text
-[ fx ▸ ]  [ cellref ]  [ ───────── värde i markerad cell ───────── ]  [ 🎨 ]
-```
+- `text-sm font-mono` (monospace, ~14 px) — inte Arial 10 pt → texten ser mycket bredare ut än i Excel och får inte plats.
+- `h-9` (36 px) per rad — ej Excel-likt och slösar vertikalt utrymme.
+- Overlay-divens text använder `whitespace-nowrap` med `width: max-content` inuti en cell-container utan `overflow: visible` på rad-nivå (`overflow-hidden` på raden) → text klipps vid radens högerkant, men angränsande celler kan dölja den eftersom varje cell ligger i en egen `relative`-container med fallande z-index.
+- Mätfunktionen `measureNoteText` använder 14 px monospace, vilket gör fokuserings­bredden fel när vi byter typsnitt.
 
-- Vänster: liten kollaps-knapp (ChevronUp/ChevronDown-ikon) som döljer/visar fältet. När dolt: bara en smal knapp kvar att fälla ut igen.
-- Cellreferens-chip: kort etikett som visar vilken cell som är markerad, t.ex. `B14` för luftflödesrutnätet (kolumnbokstav A–J + radnummer 14–49) eller `N R2C5` för anteckningsrutnätet.
-- Input: full bredd, läser/skriver värdet i den markerade cellen i realtid. Enter flyttar fokus tillbaka till cellen i rutnätet.
-- Höger: befintliga `Popover` med färgknappen flyttas hit från `flex items-center gap-2 flex-wrap`-raden längre ned. Färgknappen agerar fortfarande mot `selectedCell` (luftflödesrutnätet) precis som idag.
+## Förslag på ändringar (endast `src/pages/Index.tsx`)
 
-Sticky-beteende: wrappa formelraden i en `sticky top-[Npx]` direkt efter `<header>` så den ligger kvar synligt vid scroll, ihop med toppmenyn.
+1. **Typsnitt och storlek**
+   - Byt cellernas klasser från `text-sm font-mono` till en Arial-baserad stil i 10 pt:
+     `font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.1;`
+     (10 pt ≈ 13.33 px; 13 px ger samma intryck som Excel på A4 och tablet).
+   - Gäller både `<input>` och overlay-`<div>`.
 
-## Datakoppling
+2. **Radhöjd**
+   - Sänk radhöjd från `h-9` (36 px) till ~`h-[26px]` (~26 px). Excel = 21 px men på tablet behöver vi tap-target ≥ 24 px. 26 px ger Excel-känsla men är fortfarande bekvämt på pekskärm. Justera även overlay-divens höjd och `top`-offset.
+   - På utskrift (A4): lägg till en `@media print`-regel via inline `<style>` eller Tailwind `print:` så raderna kollapsar till exakt 21 px för 1:1 med Excel.
 
-- Ny state `activeCell` av typen `{ source: "grid"; row: number; col: string } | { source: "notes"; r: number; c: number } | null`.
-- Sätts via `onCellSelect` i `AirflowGrid` (befintlig callback) och via `onFocus` i anteckningsrutnätet (där `focusedNoteCell` redan sätts).
-- För synk med befintliga features: när `activeCell.source === "grid"` sätts även `selectedCell` (så färgknappen fungerar). När `activeCell.source === "notes"` sätts även `focusedNoteCell`.
-- Formelfältets värde:
-  - grid: `sheets[activeSheet].rows[row][col]`
-  - notes: cell `(r,c)` extraherad ur `sheet.notes` (samma `split("\n")` / `split("\t")`-logik som idag).
-- Ändring i formelfältet skriver tillbaka via `handleCellChange` resp. samma notes-uppdaterings-funktion som inputarna i anteckningsrutnätet.
-- Tomt fält när inget är markerat; placeholdern säger "Markera en cell".
+3. **Excel-likt textöverflöde**
+   - Behåll overlay-`<div>` med `whitespace-nowrap` men ta bort `overflow-hidden` på rad-containern och låt overlay flöda in i nästa (tom) cell, precis som Excel gör. Lägg `pointer-events: none` (redan satt) så input i nästa cell går att klicka. Sätt `overflow: visible` på cell-divsen och håll en hög z-index på overlayen så den syns över nästa cells transparenta input.
+   - Säkerställ att overlay döljs så fort nästa cell har egen text (kontrollera `cells[colIdx+1]` — om icke-tom: klipp overlayen vid cellgränsen genom att sätta `max-width: 100%` på den).
 
-## Flytt av färgknappen
+4. **Konsekvent mätning**
+   - Uppdatera `measureNoteText` så fontspec matchar nya stilen: `13px Arial, Helvetica, sans-serif`. Behövs för korrekt bredd vid fokus.
 
-- Ta bort `<div className="ml-auto"> ... Popover ... </div>` från bladhanterings-raden (rad ~758–784).
-- Återanvänd samma `Popover` + `COLOR_PALETTE`-markup i formelradens högerkant.
-- Beteendet (`handleApplyColor`, `lastColor`) lämnas oförändrat.
+5. **Bredd / kolumnfördelning**
+   - Behåll `grid-cols-10` (10 lika breda kolumner). På A4 print blir det 10 × ~64 px ≈ 640 px om vi sätter total bredd 640 px i `@media print`. Lägg `@media print { .notes-grid { width: 640px; } }` på containern.
 
-## Kollaps-toggle
+6. **Tablet-anpassning**
+   - Inga ändringar i layout för surfplatta utöver radhöjden ovan; cellbredden följer container (responsivt). Tap-target 26 px räcker för enkel cell-fokus eftersom man oftast tappar på text-overlayen.
 
-- Ny state `formulaBarOpen` (default `true`, persistera ev. i localStorage under nyckel `lfp-formula-bar-open` — valfritt, lägger till om enkelt).
-- När `false`: visa bara en tunn rad med chevron-knapp som öppnar igen. Färgknappen följer också med och göms (alternativt: visa alltid färgknappen även när fältet är kollapsat — föreslår att gömma den med fältet eftersom användaren bad om "ligger till höger om formelfältet").
+## Inga andra ändringar
+
+- Datamodell, import, export och övrig UI lämnas oförändrade.
+- `AirflowGrid.tsx` ändras inte.
 
 ## Filer som ändras
 
-- `src/pages/Index.tsx` — ny formelrad, ny `activeCell`-state, flytt av Popover, små justeringar i `onCellSelect`/notes-`onFocus`.
-
-Inga ändringar i `AirflowGrid.tsx`, datamodell, import eller export.
+- `src/pages/Index.tsx` (anteckningsrutnätet ~880–973 + `measureNoteText` ~187–195).
