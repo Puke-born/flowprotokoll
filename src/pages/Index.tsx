@@ -12,7 +12,7 @@ import {
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import { exportAllSheets } from "@/lib/exportExcel";
-import { getSheetNames, importSheets } from "@/lib/importExcel";
+import { getSheetNames, importSheets, parseRange, readSheetPreview, type CellRange } from "@/lib/importExcel";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -144,6 +144,10 @@ const Index = () => {
   const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
+  const [dataRangeInput, setDataRangeInput] = useState("A14:J49");
+  const [notesRangeInput, setNotesRangeInput] = useState("A51:J55");
+  const [previewSheetName, setPreviewSheetName] = useState<string>("");
+  const [previewData, setPreviewData] = useState<string[][]>([]);
 
   // Cell coloring state
   const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
@@ -359,15 +363,29 @@ const Index = () => {
       setImportFileBuffer(buffer);
       setAvailableSheetNames(names);
       setSelectedSheetNames(names); // select all by default
+      const first = names[0] ?? "";
+      setPreviewSheetName(first);
+      setPreviewData(first ? readSheetPreview(buffer, first) : []);
       setImportDialogOpen(true);
     };
     reader.readAsArrayBuffer(file);
     e.target.value = ""; // reset so same file can be picked again
   }, []);
 
+  useEffect(() => {
+    if (!importFileBuffer || !previewSheetName) return;
+    setPreviewData(readSheetPreview(importFileBuffer, previewSheetName));
+  }, [previewSheetName, importFileBuffer]);
+
   const handleImportConfirm = useCallback(() => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
-    const imported = importSheets(importFileBuffer, selectedSheetNames);
+    const dataRange = parseRange(dataRangeInput);
+    const notesRange = parseRange(notesRangeInput);
+    if (!dataRange || !notesRange) {
+      toast.error("Ogiltigt cellområde");
+      return;
+    }
+    const imported = importSheets(importFileBuffer, selectedSheetNames, dataRange, notesRange);
     const newSheets: Sheet[] = imported.map((s) => ({
       ...createEmptySheet(s.name),
       rows: s.rows,
@@ -392,7 +410,7 @@ const Index = () => {
     setImportDialogOpen(false);
     setImportFileBuffer(null);
     toast.success(`${newSheets.length} blad importerade`);
-  }, [importFileBuffer, selectedSheetNames]);
+  }, [importFileBuffer, selectedSheetNames, dataRangeInput, notesRangeInput]);
 
   const toggleSheetSelection = useCallback((name: string) => {
     setSelectedSheetNames((prev) =>
