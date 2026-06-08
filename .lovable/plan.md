@@ -1,46 +1,52 @@
 ## Mål
 
-Få anteckningsrutnätet "Mätmetod och övriga upplysningar" att visa texten lika tydligt som i Excel, anpassat både för surfplatta och A4-utskrift. Excel-referens: 10 kolumner × 64 px bred, 5 rader × 21 px hög, Arial 10 pt.
+Bygg om importflödet så användaren kan:
+1. Bocka i vilka blad som ska importeras (checkboxar, som idag).
+2. Ange ett **cellområde för data** (t.ex. `A14:J49`).
+3. Ange ett **cellområde för anteckningar** (t.ex. `A51:J55`).
+4. Se en Excel-lik förhandsvisning av det valda bladet med kolumnbokstäver (A, B, C…) och radnummer, där båda cellområdena highlightas med var sin färg.
+5. Klicka "Bekräfta import" → samma två cellområden extraheras från ALLA ibockade blad.
 
-## Problem idag
+## Förändringar
 
-I `src/pages/Index.tsx` (raderna ~880–973) renderas anteckningsrutnätet med:
+### `src/lib/importExcel.ts`
 
-- `text-sm font-mono` (monospace, ~14 px) — inte Arial 10 pt → texten ser mycket bredare ut än i Excel och får inte plats.
-- `h-9` (36 px) per rad — ej Excel-likt och slösar vertikalt utrymme.
-- Overlay-divens text använder `whitespace-nowrap` med `width: max-content` inuti en cell-container utan `overflow: visible` på rad-nivå (`overflow-hidden` på raden) → text klipps vid radens högerkant, men angränsande celler kan dölja den eftersom varje cell ligger i en egen `relative`-container med fallande z-index.
-- Mätfunktionen `measureNoteText` använder 14 px monospace, vilket gör fokuserings­bredden fel när vi byter typsnitt.
+- Lägg till `parseRange(range: string): { r1, c1, r2, c2 } | null` som tolkar `A1`-syntax (case-insensitive, max kolumn Z räcker; använd `XLSX.utils.decode_range` för robusthet). Returnerar `null` vid ogiltig syntax.
+- Lägg till `readSheetPreview(file: ArrayBuffer, sheetName: string, maxRows = 100, maxCols = 26): string[][]` som returnerar en 2D-array med cellvärden (tomt om saknas) för förhandsvisning.
+- Uppdatera signaturen:
+  ```ts
+  importSheets(
+    file: ArrayBuffer,
+    sheetNames: string[],
+    dataRange: { r1, c1, r2, c2 },
+    notesRange: { r1, c1, r2, c2 },
+  ): ImportedSheet[]
+  ```
+  - Data: iterera `dataRange`, mappa kolumner i ordning mot `COL_KEYS` (max 10 kolumner; om området är bredare ignoreras överskott, om smalare lämnas resten tomt).
+  - Anteckningar: iterera `notesRange` på samma sätt som idag (tab-separerade kolumner, radbrytning per rad, trimma trailing tomma rader).
+  - Antal datarader = `r2 - r1 + 1` (varierar nu per fil, inte hårdkodat 36).
 
-## Förslag på ändringar (endast `src/pages/Index.tsx`)
+### `src/pages/Index.tsx`
 
-1. **Typsnitt och storlek**
-   - Byt cellernas klasser från `text-sm font-mono` till en Arial-baserad stil i 10 pt:
-     `font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.1;`
-     (10 pt ≈ 13.33 px; 13 px ger samma intryck som Excel på A4 och tablet).
-   - Gäller både `<input>` och overlay-`<div>`.
+Utöka befintlig import-dialog:
 
-2. **Radhöjd**
-   - Sänk radhöjd från `h-9` (36 px) till ~`h-[26px]` (~26 px). Excel = 21 px men på tablet behöver vi tap-target ≥ 24 px. 26 px ger Excel-känsla men är fortfarande bekvämt på pekskärm. Justera även overlay-divens höjd och `top`-offset.
-   - På utskrift (A4): lägg till en `@media print`-regel via inline `<style>` eller Tailwind `print:` så raderna kollapsar till exakt 21 px för 1:1 med Excel.
-
-3. **Excel-likt textöverflöde**
-   - Behåll overlay-`<div>` med `whitespace-nowrap` men ta bort `overflow-hidden` på rad-containern och låt overlay flöda in i nästa (tom) cell, precis som Excel gör. Lägg `pointer-events: none` (redan satt) så input i nästa cell går att klicka. Sätt `overflow: visible` på cell-divsen och håll en hög z-index på overlayen så den syns över nästa cells transparenta input.
-   - Säkerställ att overlay döljs så fort nästa cell har egen text (kontrollera `cells[colIdx+1]` — om icke-tom: klipp overlayen vid cellgränsen genom att sätta `max-width: 100%` på den).
-
-4. **Konsekvent mätning**
-   - Uppdatera `measureNoteText` så fontspec matchar nya stilen: `13px Arial, Helvetica, sans-serif`. Behövs för korrekt bredd vid fokus.
-
-5. **Bredd / kolumnfördelning**
-   - Behåll `grid-cols-10` (10 lika breda kolumner). På A4 print blir det 10 × ~64 px ≈ 640 px om vi sätter total bredd 640 px i `@media print`. Lägg `@media print { .notes-grid { width: 640px; } }` på containern.
-
-6. **Tablet-anpassning**
-   - Inga ändringar i layout för surfplatta utöver radhöjden ovan; cellbredden följer container (responsivt). Tap-target 26 px räcker för enkel cell-fokus eftersom man oftast tappar på text-overlayen.
-
-## Inga andra ändringar
-
-- Datamodell, import, export och övrig UI lämnas oförändrade.
-- `AirflowGrid.tsx` ändras inte.
+- Behåll bladlistan med checkboxar (alla ibockade som default).
+- När dialogen öppnas: välj första bladet som "förhandsvisat blad" och anropa `readSheetPreview`. Lägg till en liten väljare (radioknappar eller `<Select>`) ovanför förhandsvisningen för att byta vilket blad som visas — alla blad importeras ändå baserat på checkboxarna.
+- Två textfält:
+  - "Cellområde för data" (default `A14:J49`)
+  - "Cellområde för anteckningar" (default `A51:J55`)
+  - Båda valideras via `parseRange`; röd kant + felmeddelande vid ogiltig syntax. "Bekräfta import" disablas om något är ogiltigt eller inga blad är ibockade.
+- Förhandsvisning: scrollbar `<div class="max-h-[60vh] overflow-auto">` med en tabell:
+  - Sticky top-rad med kolumnbokstäver (A–Z eller upp till `maxCols`).
+  - Sticky vänsterkolumn med radnummer (1-indexerade).
+  - Celler inom dataRange: `bg-primary/15 ring-1 ring-primary/40`.
+  - Celler inom notesRange: `bg-amber-200/40 ring-1 ring-amber-500/50`.
+  - Överlapp: hanteras genom att data-stil ritas först, notes-stil överskuggar.
+- "Bekräfta import" anropar `importSheets(buffer, selectedSheetNames, dataRange, notesRange)` och ersätter `sheets`, `importedCellsMap` och `cellColorsMap` precis som idag.
 
 ## Filer som ändras
 
-- `src/pages/Index.tsx` (anteckningsrutnätet ~880–973 + `measureNoteText` ~187–195).
+- `src/lib/importExcel.ts`
+- `src/pages/Index.tsx`
+
+Inga ändringar i datamodell, export, `AirflowGrid` eller övrig UI.

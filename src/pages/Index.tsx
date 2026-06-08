@@ -12,7 +12,7 @@ import {
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import { exportAllSheets } from "@/lib/exportExcel";
-import { getSheetNames, importSheets } from "@/lib/importExcel";
+import { getSheetNames, importSheets, parseRange, readSheetPreview, type CellRange } from "@/lib/importExcel";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -144,6 +144,10 @@ const Index = () => {
   const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
+  const [dataRangeInput, setDataRangeInput] = useState("A14:J49");
+  const [notesRangeInput, setNotesRangeInput] = useState("A51:J55");
+  const [previewSheetName, setPreviewSheetName] = useState<string>("");
+  const [previewData, setPreviewData] = useState<string[][]>([]);
 
   // Cell coloring state
   const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
@@ -359,15 +363,29 @@ const Index = () => {
       setImportFileBuffer(buffer);
       setAvailableSheetNames(names);
       setSelectedSheetNames(names); // select all by default
+      const first = names[0] ?? "";
+      setPreviewSheetName(first);
+      setPreviewData(first ? readSheetPreview(buffer, first) : []);
       setImportDialogOpen(true);
     };
     reader.readAsArrayBuffer(file);
     e.target.value = ""; // reset so same file can be picked again
   }, []);
 
+  useEffect(() => {
+    if (!importFileBuffer || !previewSheetName) return;
+    setPreviewData(readSheetPreview(importFileBuffer, previewSheetName));
+  }, [previewSheetName, importFileBuffer]);
+
   const handleImportConfirm = useCallback(() => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
-    const imported = importSheets(importFileBuffer, selectedSheetNames);
+    const dataRange = parseRange(dataRangeInput);
+    const notesRange = parseRange(notesRangeInput);
+    if (!dataRange || !notesRange) {
+      toast.error("Ogiltigt cellområde");
+      return;
+    }
+    const imported = importSheets(importFileBuffer, selectedSheetNames, dataRange, notesRange);
     const newSheets: Sheet[] = imported.map((s) => ({
       ...createEmptySheet(s.name),
       rows: s.rows,
@@ -392,7 +410,7 @@ const Index = () => {
     setImportDialogOpen(false);
     setImportFileBuffer(null);
     toast.success(`${newSheets.length} blad importerade`);
-  }, [importFileBuffer, selectedSheetNames]);
+  }, [importFileBuffer, selectedSheetNames, dataRangeInput, notesRangeInput]);
 
   const toggleSheetSelection = useCallback((name: string) => {
     setSelectedSheetNames((prev) =>
@@ -989,27 +1007,140 @@ const Index = () => {
         </div>
       </main>
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
-            <DialogTitle>Välj blad att importera</DialogTitle>
+            <DialogTitle>Importera Excel</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            {availableSheetNames.map((name) => (
-              <label key={name} className="flex items-center gap-3 cursor-pointer">
-                <Checkbox
-                  checked={selectedSheetNames.includes(name)}
-                  onCheckedChange={() => toggleSheetSelection(name)}
-                />
-                <span className="text-sm">{name}</span>
-              </label>
-            ))}
-          </div>
+          {(() => {
+            const dataRange = parseRange(dataRangeInput);
+            const notesRange = parseRange(notesRangeInput);
+            const dataValid = !!dataRange;
+            const notesValid = !!notesRange;
+            const inRange = (r: number, c: number, range: CellRange | null) =>
+              !!range && r >= range.r1 && r <= range.r2 && c >= range.c1 && c <= range.c2;
+            const cols = previewData[0]?.length ?? 0;
+            const colLetter = (c: number) => {
+              let s = ""; let n = c;
+              while (n >= 0) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; }
+              return s;
+            };
+            return (
+              <div className="grid grid-cols-[220px_1fr] gap-4 py-2">
+                <div className="space-y-3 max-h-[65vh] overflow-auto pr-2">
+                  <div>
+                    <div className="text-xs font-medium mb-1.5 text-muted-foreground">Blad att importera</div>
+                    <div className="space-y-1.5">
+                      {availableSheetNames.map((name) => (
+                        <label key={name} className="flex items-center gap-2 cursor-pointer text-sm">
+                          <Checkbox
+                            checked={selectedSheetNames.includes(name)}
+                            onCheckedChange={() => toggleSheetSelection(name)}
+                          />
+                          <span className="truncate">{name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium mb-1.5 text-muted-foreground">Förhandsvisa blad</div>
+                    <select
+                      className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                      value={previewSheetName}
+                      onChange={(e) => setPreviewSheetName(e.target.value)}
+                    >
+                      {availableSheetNames.map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1 text-muted-foreground flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-sm bg-primary/30 ring-1 ring-primary/60" />
+                      Cellområde – Data
+                    </label>
+                    <Input
+                      value={dataRangeInput}
+                      onChange={(e) => setDataRangeInput(e.target.value)}
+                      placeholder="A14:J49"
+                      className={dataValid ? "" : "border-destructive focus-visible:ring-destructive"}
+                    />
+                    {!dataValid && <p className="text-xs text-destructive mt-1">Ogiltigt format (t.ex. A14:J49)</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1 text-muted-foreground flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-sm bg-amber-300/60 ring-1 ring-amber-500" />
+                      Cellområde – Anteckningar
+                    </label>
+                    <Input
+                      value={notesRangeInput}
+                      onChange={(e) => setNotesRangeInput(e.target.value)}
+                      placeholder="A51:J55"
+                      className={notesValid ? "" : "border-destructive focus-visible:ring-destructive"}
+                    />
+                    {!notesValid && <p className="text-xs text-destructive mt-1">Ogiltigt format (t.ex. A51:J55)</p>}
+                  </div>
+                </div>
+                <div className="border rounded-md max-h-[65vh] overflow-auto bg-background">
+                  {previewData.length === 0 ? (
+                    <div className="p-4 text-sm text-muted-foreground">Ingen förhandsvisning</div>
+                  ) : (
+                    <table className="border-collapse text-xs font-mono">
+                      <thead className="sticky top-0 z-20 bg-muted">
+                        <tr>
+                          <th className="sticky left-0 z-30 bg-muted border border-border w-10 min-w-10 h-6"></th>
+                          {Array.from({ length: cols }, (_, c) => (
+                            <th key={c} className="border border-border px-2 h-6 min-w-[70px] text-center font-medium">
+                              {colLetter(c)}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.map((row, r) => (
+                          <tr key={r}>
+                            <td className="sticky left-0 z-10 bg-muted border border-border w-10 min-w-10 text-center font-medium h-6">
+                              {r + 1}
+                            </td>
+                            {Array.from({ length: cols }, (_, c) => {
+                              const inData = inRange(r, c, dataRange);
+                              const inNotes = inRange(r, c, notesRange);
+                              const cls = inNotes
+                                ? "bg-amber-200/50 ring-1 ring-inset ring-amber-500/60"
+                                : inData
+                                  ? "bg-primary/15 ring-1 ring-inset ring-primary/50"
+                                  : "";
+                              return (
+                                <td
+                                  key={c}
+                                  className={`border border-border px-2 h-6 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px] ${cls}`}
+                                  title={row[c] ?? ""}
+                                >
+                                  {row[c] ?? ""}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
               Avbryt
             </Button>
-            <Button onClick={handleImportConfirm} disabled={selectedSheetNames.length === 0}>
-              Importera ({selectedSheetNames.length} blad)
+            <Button
+              onClick={handleImportConfirm}
+              disabled={
+                selectedSheetNames.length === 0 ||
+                !parseRange(dataRangeInput) ||
+                !parseRange(notesRangeInput)
+              }
+            >
+              Bekräfta import ({selectedSheetNames.length} blad)
             </Button>
           </DialogFooter>
         </DialogContent>
