@@ -39,6 +39,18 @@ const NUM_ROWS = 36; // rows 14–49
 const createEmptyRows = (): GridRow[] =>
   Array.from({ length: NUM_ROWS }, () => ({}));
 
+const colLetter = (c: number): string => {
+  let s = ""; let n = c;
+  while (n >= 0) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; }
+  return s;
+};
+
+const encodeRange = (r1: number, c1: number, r2: number, c2: number): string => {
+  const rr1 = Math.min(r1, r2), rr2 = Math.max(r1, r2);
+  const cc1 = Math.min(c1, c2), cc2 = Math.max(c1, c2);
+  return `${colLetter(cc1)}${rr1 + 1}:${colLetter(cc2)}${rr2 + 1}`;
+};
+
 interface Sheet {
   name: string;
   kund: string;
@@ -148,6 +160,8 @@ const Index = () => {
   const [notesRangeInput, setNotesRangeInput] = useState("A51:J55");
   const [previewSheetName, setPreviewSheetName] = useState<string>("");
   const [previewData, setPreviewData] = useState<string[][]>([]);
+  const [rangeSelectionMode, setRangeSelectionMode] = useState<"data" | "notes">("data");
+  const [dragSelect, setDragSelect] = useState<null | { startR: number; startC: number; target: "data" | "notes" }>(null);
 
   // Cell coloring state
   const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
@@ -386,15 +400,21 @@ const Index = () => {
       return;
     }
     const imported = importSheets(importFileBuffer, selectedSheetNames, dataRange, notesRange);
+    const padRows = (rows: GridRow[]): GridRow[] => {
+      const out = rows.slice(0, NUM_ROWS);
+      while (out.length < NUM_ROWS) out.push({});
+      return out;
+    };
     const newSheets: Sheet[] = imported.map((s) => ({
       ...createEmptySheet(s.name),
-      rows: s.rows,
+      rows: padRows(s.rows),
       notes: s.notes,
     }));
     // Build imported cells map
     const newImportedMap = new Map<number, Set<string>[]>();
     imported.forEach((s, sheetIdx) => {
-      const rowSets: Set<string>[] = s.rows.map((row) => {
+      const paddedRows = padRows(s.rows);
+      const rowSets: Set<string>[] = paddedRows.map((row) => {
         const keys = new Set<string>();
         for (const [k, v] of Object.entries(row)) {
           if (v) keys.add(k);
@@ -1007,7 +1027,7 @@ const Index = () => {
         </div>
       </main>
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-5xl">
+        <DialogContent className="max-w-5xl sm:p-8 p-5">
           <DialogHeader>
             <DialogTitle>Importera Excel</DialogTitle>
           </DialogHeader>
@@ -1019,20 +1039,35 @@ const Index = () => {
             const inRange = (r: number, c: number, range: CellRange | null) =>
               !!range && r >= range.r1 && r <= range.r2 && c >= range.c1 && c <= range.c2;
             const cols = previewData[0]?.length ?? 0;
-            const colLetter = (c: number) => {
-              let s = ""; let n = c;
-              while (n >= 0) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; }
-              return s;
+            const applyDragRange = (startR: number, startC: number, endR: number, endC: number, target: "data" | "notes") => {
+              const encoded = encodeRange(startR, startC, endR, endC);
+              if (target === "data") setDataRangeInput(encoded);
+              else setNotesRangeInput(encoded);
+            };
+            const onCellDown = (r: number, c: number) => (e: React.PointerEvent) => {
+              e.preventDefault();
+              (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+              setDragSelect({ startR: r, startC: c, target: rangeSelectionMode });
+              applyDragRange(r, c, r, c, rangeSelectionMode);
+            };
+            const onCellEnter = (r: number, c: number) => () => {
+              if (!dragSelect) return;
+              applyDragRange(dragSelect.startR, dragSelect.startC, r, c, dragSelect.target);
             };
             return (
-              <div className="flex flex-col gap-4 py-2">
-                <div className="flex flex-wrap gap-3">
-                  <div className="flex-1 min-w-[200px]">
-                    <div className="text-xs font-medium mb-1.5 text-muted-foreground">Blad att importera</div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <div
+                className="flex flex-col gap-5 py-2"
+                onPointerUp={() => setDragSelect(null)}
+                onPointerLeave={() => setDragSelect(null)}
+              >
+                <div className="flex flex-wrap gap-5">
+                  <div className="flex-1 min-w-[220px]">
+                    <div className="text-sm font-medium mb-2 text-muted-foreground">Blad att importera</div>
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
                       {availableSheetNames.map((name) => (
-                        <label key={name} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                        <label key={name} className="flex items-center gap-2 cursor-pointer text-sm min-h-[40px] px-1">
                           <Checkbox
+                            className="h-5 w-5"
                             checked={selectedSheetNames.includes(name)}
                             onCheckedChange={() => toggleSheetSelection(name)}
                           />
@@ -1041,10 +1076,10 @@ const Index = () => {
                       ))}
                     </div>
                   </div>
-                  <div className="min-w-[200px]">
-                    <div className="text-xs font-medium mb-1.5 text-muted-foreground">Förhandsvisa blad</div>
+                  <div className="min-w-[220px]">
+                    <div className="text-sm font-medium mb-2 text-muted-foreground">Förhandsvisa blad</div>
                     <select
-                      className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                      className="w-full border rounded-md px-3 h-11 text-sm bg-background"
                       value={previewSheetName}
                       onChange={(e) => setPreviewSheetName(e.target.value)}
                     >
@@ -1054,44 +1089,61 @@ const Index = () => {
                     </select>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                  <div className="flex-1 min-w-[240px]">
-                    <label className="text-xs font-medium mb-1 text-muted-foreground flex items-center gap-2">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-primary/30 ring-1 ring-primary/60" />
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-[260px]">
+                    <label className="text-sm font-medium mb-1.5 text-muted-foreground flex items-center gap-2">
+                      <span className="inline-block w-3.5 h-3.5 rounded-sm bg-primary/30 ring-1 ring-primary/60" />
                       Cellområde – Data
+                      <button
+                        type="button"
+                        onClick={() => setRangeSelectionMode("data")}
+                        className={`ml-auto text-xs px-2.5 h-8 rounded-md border transition-colors ${rangeSelectionMode === "data" ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
+                      >
+                        {rangeSelectionMode === "data" ? "Markerar nu" : "Markera i tabell"}
+                      </button>
                     </label>
                     <Input
                       value={dataRangeInput}
                       onChange={(e) => setDataRangeInput(e.target.value)}
                       placeholder="A14:J49"
-                      className={dataValid ? "" : "border-destructive focus-visible:ring-destructive"}
+                      className={`h-11 text-base ${dataValid ? "" : "border-destructive focus-visible:ring-destructive"}`}
                     />
                     {!dataValid && <p className="text-xs text-destructive mt-1">Ogiltigt format (t.ex. A14:J49)</p>}
                   </div>
-                  <div className="flex-1 min-w-[240px]">
-                    <label className="text-xs font-medium mb-1 text-muted-foreground flex items-center gap-2">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-amber-300/60 ring-1 ring-amber-500" />
+                  <div className="flex-1 min-w-[260px]">
+                    <label className="text-sm font-medium mb-1.5 text-muted-foreground flex items-center gap-2">
+                      <span className="inline-block w-3.5 h-3.5 rounded-sm bg-amber-300/60 ring-1 ring-amber-500" />
                       Cellområde – Anteckningar
+                      <button
+                        type="button"
+                        onClick={() => setRangeSelectionMode("notes")}
+                        className={`ml-auto text-xs px-2.5 h-8 rounded-md border transition-colors ${rangeSelectionMode === "notes" ? "bg-amber-500 text-white border-amber-500" : "bg-background hover:bg-muted"}`}
+                      >
+                        {rangeSelectionMode === "notes" ? "Markerar nu" : "Markera i tabell"}
+                      </button>
                     </label>
                     <Input
                       value={notesRangeInput}
                       onChange={(e) => setNotesRangeInput(e.target.value)}
                       placeholder="A51:J55"
-                      className={notesValid ? "" : "border-destructive focus-visible:ring-destructive"}
+                      className={`h-11 text-base ${notesValid ? "" : "border-destructive focus-visible:ring-destructive"}`}
                     />
                     {!notesValid && <p className="text-xs text-destructive mt-1">Ogiltigt format (t.ex. A51:J55)</p>}
                   </div>
                 </div>
-                <div className="border rounded-md max-h-[65vh] overflow-auto bg-background">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Tips: klicka eller dra i tabellen nedan för att markera det aktiva området ({rangeSelectionMode === "data" ? "Data" : "Anteckningar"}).
+                </p>
+                <div className="border rounded-md max-h-[60vh] overflow-auto bg-background select-none">
                   {previewData.length === 0 ? (
                     <div className="p-4 text-sm text-muted-foreground">Ingen förhandsvisning</div>
                   ) : (
-                    <table className="border-collapse text-xs font-mono">
+                    <table className="border-collapse text-sm font-mono">
                       <thead className="sticky top-0 z-20 bg-muted">
                         <tr>
-                          <th className="sticky left-0 z-30 bg-muted border border-border w-10 min-w-10 h-6"></th>
+                          <th className="sticky left-0 z-30 bg-muted border border-border w-12 min-w-12 h-9"></th>
                           {Array.from({ length: cols }, (_, c) => (
-                            <th key={c} className="border border-border px-2 h-6 min-w-[70px] text-center font-medium">
+                            <th key={c} className="border border-border px-3 h-9 min-w-[88px] text-center font-medium">
                               {colLetter(c)}
                             </th>
                           ))}
@@ -1100,7 +1152,7 @@ const Index = () => {
                       <tbody>
                         {previewData.map((row, r) => (
                           <tr key={r}>
-                            <td className="sticky left-0 z-10 bg-muted border border-border w-10 min-w-10 text-center font-medium h-6">
+                            <td className="sticky left-0 z-10 bg-muted border border-border w-12 min-w-12 text-center font-medium h-9">
                               {r + 1}
                             </td>
                             {Array.from({ length: cols }, (_, c) => {
@@ -1114,8 +1166,10 @@ const Index = () => {
                               return (
                                 <td
                                   key={c}
-                                  className={`border border-border px-2 h-6 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px] ${cls}`}
+                                  className={`border border-border px-3 h-9 whitespace-nowrap overflow-hidden text-ellipsis max-w-[220px] cursor-cell ${cls}`}
                                   title={row[c] ?? ""}
+                                  onPointerDown={onCellDown(r, c)}
+                                  onPointerEnter={onCellEnter(r, c)}
                                 >
                                   {row[c] ?? ""}
                                 </td>
@@ -1130,11 +1184,12 @@ const Index = () => {
               </div>
             );
           })()}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" size="lg" onClick={() => setImportDialogOpen(false)}>
               Avbryt
             </Button>
             <Button
+              size="lg"
               onClick={handleImportConfirm}
               disabled={
                 selectedSheetNames.length === 0 ||
