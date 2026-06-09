@@ -400,15 +400,21 @@ const Index = () => {
       return;
     }
     const imported = importSheets(importFileBuffer, selectedSheetNames, dataRange, notesRange);
+    const padRows = (rows: GridRow[]): GridRow[] => {
+      const out = rows.slice(0, NUM_ROWS);
+      while (out.length < NUM_ROWS) out.push({});
+      return out;
+    };
     const newSheets: Sheet[] = imported.map((s) => ({
       ...createEmptySheet(s.name),
-      rows: s.rows,
+      rows: padRows(s.rows),
       notes: s.notes,
     }));
     // Build imported cells map
     const newImportedMap = new Map<number, Set<string>[]>();
     imported.forEach((s, sheetIdx) => {
-      const rowSets: Set<string>[] = s.rows.map((row) => {
+      const paddedRows = padRows(s.rows);
+      const rowSets: Set<string>[] = paddedRows.map((row) => {
         const keys = new Set<string>();
         for (const [k, v] of Object.entries(row)) {
           if (v) keys.add(k);
