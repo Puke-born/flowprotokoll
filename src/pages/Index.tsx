@@ -148,6 +148,8 @@ const Index = () => {
   const [notesRangeInput, setNotesRangeInput] = useState("A51:J55");
   const [previewSheetName, setPreviewSheetName] = useState<string>("");
   const [previewData, setPreviewData] = useState<string[][]>([]);
+  const [rangeSelectionMode, setRangeSelectionMode] = useState<"data" | "notes">("data");
+  const [dragSelect, setDragSelect] = useState<null | { startR: number; startC: number; target: "data" | "notes" }>(null);
 
   // Cell coloring state
   const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
