@@ -1134,7 +1134,7 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground -mt-2">
                   Tips: klicka eller dra i tabellen nedan för att markera det aktiva området ({rangeSelectionMode === "data" ? "Data" : "Anteckningar"}).
                 </p>
-                <div className="border rounded-md max-h-[60vh] overflow-auto bg-background select-none touch-none">
+                <div className="border rounded-md max-h-[60vh] overflow-auto bg-background select-none">
                   {previewData.length === 0 ? (
                     <div className="p-4 text-sm text-muted-foreground">Ingen förhandsvisning</div>
                   ) : (
