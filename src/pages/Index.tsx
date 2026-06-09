@@ -1056,7 +1056,7 @@ const Index = () => {
             };
             return (
               <div
-                className="flex flex-col gap-5 py-2"
+                className="flex flex-col gap-4 overflow-y-auto"
                 onPointerUp={() => setDragSelect(null)}
                 onPointerLeave={() => setDragSelect(null)}
               >
