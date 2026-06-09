@@ -39,6 +39,18 @@ const NUM_ROWS = 36; // rows 14–49
 const createEmptyRows = (): GridRow[] =>
   Array.from({ length: NUM_ROWS }, () => ({}));
 
+const colLetter = (c: number): string => {
+  let s = ""; let n = c;
+  while (n >= 0) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; }
+  return s;
+};
+
+const encodeRange = (r1: number, c1: number, r2: number, c2: number): string => {
+  const rr1 = Math.min(r1, r2), rr2 = Math.max(r1, r2);
+  const cc1 = Math.min(c1, c2), cc2 = Math.max(c1, c2);
+  return `${colLetter(cc1)}${rr1 + 1}:${colLetter(cc2)}${rr2 + 1}`;
+};
+
 interface Sheet {
   name: string;
   kund: string;
