@@ -1027,7 +1027,7 @@ const Index = () => {
         </div>
       </main>
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-5xl sm:p-8 p-5">
+        <DialogContent className="max-w-5xl sm:p-8 p-5 max-h-[92dvh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Importera Excel</DialogTitle>
           </DialogHeader>
@@ -1056,7 +1056,7 @@ const Index = () => {
             };
             return (
               <div
-                className="flex flex-col gap-5 py-2"
+                className="flex flex-col gap-4 overflow-y-auto"
                 onPointerUp={() => setDragSelect(null)}
                 onPointerLeave={() => setDragSelect(null)}
               >
@@ -1134,7 +1134,7 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground -mt-2">
                   Tips: klicka eller dra i tabellen nedan för att markera det aktiva området ({rangeSelectionMode === "data" ? "Data" : "Anteckningar"}).
                 </p>
-                <div className="border rounded-md max-h-[60vh] overflow-auto bg-background select-none">
+                <div className="border rounded-md max-h-[55vh] overflow-auto bg-background select-none">
                   {previewData.length === 0 ? (
                     <div className="p-4 text-sm text-muted-foreground">Ingen förhandsvisning</div>
                   ) : (
