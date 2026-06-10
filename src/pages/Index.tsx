@@ -1027,7 +1027,7 @@ const Index = () => {
         </div>
       </main>
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-5xl sm:p-8 p-5 max-h-[92dvh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-[98vw] w-[98vw] sm:p-5 p-3 max-h-[96dvh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Importera Excel</DialogTitle>
           </DialogHeader>
