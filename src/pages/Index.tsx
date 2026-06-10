@@ -388,7 +388,7 @@ const Index = () => {
 
   useEffect(() => {
     if (!importFileBuffer || !previewSheetName) return;
-    setPreviewData(readSheetPreview(importFileBuffer, previewSheetName));
+    setPreviewData(readSheetPreview(importFileBuffer, previewSheetName, 55, 10));
   }, [previewSheetName, importFileBuffer]);
 
   const handleImportConfirm = useCallback(() => {
@@ -1027,7 +1027,7 @@ const Index = () => {
         </div>
       </main>
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-5xl sm:p-8 p-5 max-h-[92dvh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-[98vw] w-[98vw] sm:p-5 p-3 max-h-[96dvh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Importera Excel</DialogTitle>
           </DialogHeader>
@@ -1056,7 +1056,7 @@ const Index = () => {
             };
             return (
               <div
-                className="flex flex-col gap-4 overflow-y-auto"
+                className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden"
                 onPointerUp={() => setDragSelect(null)}
                 onPointerLeave={() => setDragSelect(null)}
               >
@@ -1134,16 +1134,16 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground -mt-2">
                   Tips: klicka eller dra i tabellen nedan för att markera det aktiva området ({rangeSelectionMode === "data" ? "Data" : "Anteckningar"}).
                 </p>
-                <div className="border rounded-md max-h-[55vh] overflow-auto bg-background select-none">
+                <div className="border rounded-md flex-1 min-h-0 overflow-auto bg-background select-none">
                   {previewData.length === 0 ? (
                     <div className="p-4 text-sm text-muted-foreground">Ingen förhandsvisning</div>
                   ) : (
-                    <table className="border-collapse text-sm font-mono">
+                    <table className="border-collapse text-[11px] font-mono w-full table-fixed">
                       <thead className="sticky top-0 z-20 bg-muted">
                         <tr>
-                          <th className="sticky left-0 z-30 bg-muted border border-border w-12 min-w-12 h-9"></th>
+                          <th className="sticky left-0 z-30 bg-muted border border-border w-8 min-w-8 h-6"></th>
                           {Array.from({ length: cols }, (_, c) => (
-                            <th key={c} className="border border-border px-3 h-9 min-w-[88px] text-center font-medium">
+                            <th key={c} className="border border-border px-1 h-6 text-center font-medium">
                               {colLetter(c)}
                             </th>
                           ))}
@@ -1152,7 +1152,7 @@ const Index = () => {
                       <tbody>
                         {previewData.map((row, r) => (
                           <tr key={r}>
-                            <td className="sticky left-0 z-10 bg-muted border border-border w-12 min-w-12 text-center font-medium h-9">
+                            <td className="sticky left-0 z-10 bg-muted border border-border w-8 min-w-8 text-center font-medium h-6">
                               {r + 1}
                             </td>
                             {Array.from({ length: cols }, (_, c) => {
@@ -1166,7 +1166,7 @@ const Index = () => {
                               return (
                                 <td
                                   key={c}
-                                  className={`border border-border px-3 h-9 whitespace-nowrap overflow-hidden text-ellipsis max-w-[220px] cursor-cell ${cls}`}
+                                  className={`border border-border px-1 h-6 whitespace-nowrap overflow-hidden text-ellipsis cursor-cell ${cls}`}
                                   title={row[c] ?? ""}
                                   onPointerDown={onCellDown(r, c)}
                                   onPointerEnter={onCellEnter(r, c)}
