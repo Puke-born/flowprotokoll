@@ -1056,7 +1056,7 @@ const Index = () => {
             };
             return (
               <div
-                className="flex flex-col gap-4 overflow-y-auto"
+                className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden"
                 onPointerUp={() => setDragSelect(null)}
                 onPointerLeave={() => setDragSelect(null)}
               >
