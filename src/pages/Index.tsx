@@ -1275,6 +1275,7 @@ const Index = () => {
                 if (confirmAction === "new") handleNewProtocol();
                 else if (confirmAction === "clear") handleClear();
                 else if (confirmAction === "remove") handleRemoveSheet();
+                else if (confirmAction === "export") handleExport();
                 setConfirmAction(null);
               }}
             >
