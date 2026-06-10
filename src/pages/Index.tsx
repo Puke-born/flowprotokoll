@@ -961,9 +961,10 @@ const Index = () => {
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Mätmetod och övriga upplysningar</span>
           </div>
           <div className="bg-grid-cell" ref={notesGridRef}>
-            {Array.from({ length: 5 }).map((_, rowIdx) => {
-              const lines = (sheet.notes || "").split("\n");
-              const cells = (lines[rowIdx] || "").split("\t");
+            {(() => {
+              const allLines = (sheet.notes || "").split("\n");
+              return Array.from({ length: 5 }).map((_, rowIdx) => {
+              const cells = (allLines[rowIdx] || "").split("\t");
               return (
                 <div
                   key={rowIdx}
@@ -1060,7 +1061,8 @@ const Index = () => {
                   })}
                 </div>
               );
-            })}
+              });
+            })()}
           </div>
         </div>
       </main>
