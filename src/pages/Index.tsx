@@ -773,7 +773,7 @@ const Index = () => {
               <Download className="w-4 h-4" />
               Import
             </Button>
-            <Button size="sm" onClick={handleExport} className="gap-1.5">
+            <Button size="sm" onClick={() => setConfirmAction("export")} className="gap-1.5">
               <Upload className="w-4 h-4" />
               Export
             </Button>
@@ -790,7 +790,7 @@ const Index = () => {
 
           {/* Mobile: Export button + dropdown menu */}
           <div className="flex md:hidden items-center gap-2">
-            <Button size="sm" onClick={handleExport} className="gap-1.5">
+            <Button size="sm" onClick={() => setConfirmAction("export")} className="gap-1.5">
               <Upload className="w-4 h-4" />
               Export
             </Button>
