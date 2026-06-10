@@ -388,7 +388,7 @@ const Index = () => {
 
   useEffect(() => {
     if (!importFileBuffer || !previewSheetName) return;
-    setPreviewData(readSheetPreview(importFileBuffer, previewSheetName));
+    setPreviewData(readSheetPreview(importFileBuffer, previewSheetName, 55, 10));
   }, [previewSheetName, importFileBuffer]);
 
   const handleImportConfirm = useCallback(() => {
