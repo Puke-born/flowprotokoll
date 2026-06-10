@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useUpdateNotifier } from "@/hooks/useUpdateNotifier";
 
 const NUM_ROWS = 36; // rows 14–49
 
@@ -176,7 +177,8 @@ const Index = () => {
   });
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
   const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
-  const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove">(null);
+  const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove" | "export">(null);
+  useUpdateNotifier();
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [formulaBarOpen, setFormulaBarOpen] = useState(() => {
     const v = localStorage.getItem(FORMULA_BAR_KEY);
@@ -225,22 +227,58 @@ const Index = () => {
       title: "Ta bort aktivt blad?",
       description: "Bladet och dess innehåll kommer att tas bort permanent.",
     },
+    export: {
+      title: "Exportera till Excel?",
+      description:
+        "Obs! De tillfälliga gula markeringarna av importerade celler försvinner efter export. Egna färgmarkeringar behålls.",
+    },
   } as const;
 
-  // Persist to localStorage
+  // Persist to localStorage – debounced så att varje tangenttryck inte
+  // kör en synkron JSON.stringify av hela projektet (stort prestandalyft).
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+    const id = window.setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+      } catch { /* quota etc */ }
+    }, 250);
+    return () => window.clearTimeout(id);
   }, [sheets, activeSheet]);
 
   useEffect(() => {
-    localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+    const id = window.setTimeout(() => {
+      try {
+        localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+      } catch { /* ignore */ }
+    }, 250);
+    return () => window.clearTimeout(id);
   }, [importedCellsMap]);
 
   useEffect(() => {
-    const obj: Record<string, Record<string, Record<string, string>>> = {};
-    cellColorsMap.forEach((v, k) => { obj[k] = v; });
-    localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+    const id = window.setTimeout(() => {
+      try {
+        const obj: Record<string, Record<string, Record<string, string>>> = {};
+        cellColorsMap.forEach((v, k) => { obj[k] = v; });
+        localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+      } catch { /* ignore */ }
+    }, 250);
+    return () => window.clearTimeout(id);
   }, [cellColorsMap]);
+
+  // Spara alltid kvarvarande pending state innan sidan stängs/refreshas
+  useEffect(() => {
+    const flush = () => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+        localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+        const obj: Record<string, Record<string, Record<string, string>>> = {};
+        cellColorsMap.forEach((v, k) => { obj[k] = v; });
+        localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+      } catch { /* ignore */ }
+    };
+    window.addEventListener("pagehide", flush);
+    return () => window.removeEventListener("pagehide", flush);
+  }, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
 
   useEffect(() => {
     localStorage.setItem(LAST_COLOR_KEY, lastColor);
@@ -735,7 +773,7 @@ const Index = () => {
               <Download className="w-4 h-4" />
               Import
             </Button>
-            <Button size="sm" onClick={handleExport} className="gap-1.5">
+            <Button size="sm" onClick={() => setConfirmAction("export")} className="gap-1.5">
               <Upload className="w-4 h-4" />
               Export
             </Button>
@@ -752,7 +790,7 @@ const Index = () => {
 
           {/* Mobile: Export button + dropdown menu */}
           <div className="flex md:hidden items-center gap-2">
-            <Button size="sm" onClick={handleExport} className="gap-1.5">
+            <Button size="sm" onClick={() => setConfirmAction("export")} className="gap-1.5">
               <Upload className="w-4 h-4" />
               Export
             </Button>
@@ -923,9 +961,10 @@ const Index = () => {
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Mätmetod och övriga upplysningar</span>
           </div>
           <div className="bg-grid-cell" ref={notesGridRef}>
-            {Array.from({ length: 5 }).map((_, rowIdx) => {
-              const lines = (sheet.notes || "").split("\n");
-              const cells = (lines[rowIdx] || "").split("\t");
+            {(() => {
+              const allLines = (sheet.notes || "").split("\n");
+              return Array.from({ length: 5 }).map((_, rowIdx) => {
+              const cells = (allLines[rowIdx] || "").split("\t");
               return (
                 <div
                   key={rowIdx}
@@ -1022,7 +1061,8 @@ const Index = () => {
                   })}
                 </div>
               );
-            })}
+              });
+            })()}
           </div>
         </div>
       </main>
@@ -1237,6 +1277,7 @@ const Index = () => {
                 if (confirmAction === "new") handleNewProtocol();
                 else if (confirmAction === "clear") handleClear();
                 else if (confirmAction === "remove") handleRemoveSheet();
+                else if (confirmAction === "export") handleExport();
                 setConfirmAction(null);
               }}
             >
