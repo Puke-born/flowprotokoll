@@ -85,6 +85,26 @@ const LAST_COLOR_KEY = "lfp-last-color";
 const FORMULA_BAR_KEY = "lfp-formula-bar-open";
 
 
+function useVirtualKeyboard() {
+  const [state, setState] = useState<{ open: boolean; offsetTop: number }>({ open: false, offsetTop: 0 });
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const kbHeight = window.innerHeight - vv.height - vv.offsetTop;
+      setState({ open: kbHeight > 150, offsetTop: vv.offsetTop });
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+  return state;
+}
+
 type ActiveCell =
   | { source: "grid"; row: number; col: string }
   | { source: "notes"; r: number; c: number }
