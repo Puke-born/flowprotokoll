@@ -6,7 +6,7 @@ import { toast } from "sonner";
  * och visar en toast med "Ladda om"-knapp när byggets script-hash ändrats.
  * Kringgår behov av att lita på service worker-events i previewmiljö.
  */
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 min
+const POLL_INTERVAL_MS = 60 * 60 * 1000; // 60 min
 
 function isPreviewOrIframe(): boolean {
   try {

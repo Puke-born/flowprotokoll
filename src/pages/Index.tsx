@@ -85,6 +85,26 @@ const LAST_COLOR_KEY = "lfp-last-color";
 const FORMULA_BAR_KEY = "lfp-formula-bar-open";
 
 
+function useVirtualKeyboard() {
+  const [state, setState] = useState<{ open: boolean; offsetTop: number }>({ open: false, offsetTop: 0 });
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const kbHeight = window.innerHeight - vv.height - vv.offsetTop;
+      setState({ open: kbHeight > 150, offsetTop: vv.offsetTop });
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+  return state;
+}
+
 type ActiveCell =
   | { source: "grid"; row: number; col: string }
   | { source: "notes"; r: number; c: number }
@@ -187,6 +207,7 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem(FORMULA_BAR_KEY, formulaBarOpen ? "1" : "0");
   }, [formulaBarOpen]);
+  const kb = useVirtualKeyboard();
 
   // Anteckningsrutnät: fokuserad cell + mätt rad-bredd för dynamisk inputbredd
   const [focusedNoteCell, setFocusedNoteCell] = useState<{ r: number; c: number } | null>(null);
@@ -838,7 +859,14 @@ const Index = () => {
         </div>
         {/* Formelfält */}
         {formulaBarOpen && (
-          <div className="border-t border-border bg-card">
+          <div
+            className={
+              kb.open
+                ? "fixed left-0 right-0 z-50 border-b border-border bg-card shadow-md"
+                : "border-t border-border bg-card"
+            }
+            style={kb.open ? { top: kb.offsetTop } : undefined}
+          >
             <div className="max-w-5xl mx-auto px-4 py-1.5 flex items-center gap-2">
               <Input
                 value={(() => {
