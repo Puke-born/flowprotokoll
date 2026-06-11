@@ -859,7 +859,14 @@ const Index = () => {
         </div>
         {/* Formelfält */}
         {formulaBarOpen && (
-          <div className="border-t border-border bg-card">
+          <div
+            className={
+              kb.open
+                ? "fixed left-0 right-0 z-50 border-b border-border bg-card shadow-md"
+                : "border-t border-border bg-card"
+            }
+            style={kb.open ? { top: kb.offsetTop } : undefined}
+          >
             <div className="max-w-5xl mx-auto px-4 py-1.5 flex items-center gap-2">
               <Input
                 value={(() => {
