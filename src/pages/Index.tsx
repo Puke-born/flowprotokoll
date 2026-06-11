@@ -762,12 +762,38 @@ const Index = () => {
       {/* Top bar */}
       <header className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              const ok = window.confirm(
+                "Tvinga uppdatering av appen?\n\nAlla osparade ändringar bör sparas först. Appen laddas om och hämtar senaste versionen.",
+              );
+              if (!ok) return;
+              try {
+                if ("serviceWorker" in navigator) {
+                  const regs = await navigator.serviceWorker.getRegistrations();
+                  await Promise.all(regs.map((r) => r.unregister()));
+                }
+                if ("caches" in window) {
+                  const keys = await caches.keys();
+                  await Promise.all(keys.map((k) => caches.delete(k)));
+                }
+              } catch {
+                // ignore – fortsätt med reload ändå
+              }
+              const url = new URL(window.location.href);
+              url.searchParams.set("_uv", Date.now().toString());
+              window.location.replace(url.toString());
+            }}
+            className="flex items-center gap-2 rounded-md px-1 -mx-1 py-1 hover:bg-muted/60 active:bg-muted transition-colors"
+            aria-label="Tvinga uppdatering av appen"
+            title="Tryck för att tvinga fram en uppdatering"
+          >
             <AirVent className="w-6 h-6 text-primary" />
             <h1 className="text-lg font-bold text-foreground tracking-tight">
               LFP
             </h1>
-          </div>
+          </button>
           {/* Hidden file inputs */}
           <input ref={projectInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadProject} />
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileSelect} />
