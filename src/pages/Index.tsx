@@ -207,6 +207,7 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem(FORMULA_BAR_KEY, formulaBarOpen ? "1" : "0");
   }, [formulaBarOpen]);
+  const kb = useVirtualKeyboard();
 
   // Anteckningsrutnät: fokuserad cell + mätt rad-bredd för dynamisk inputbredd
   const [focusedNoteCell, setFocusedNoteCell] = useState<{ r: number; c: number } | null>(null);
