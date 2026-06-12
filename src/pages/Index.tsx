@@ -90,16 +90,30 @@ function useVirtualKeyboard() {
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
+    let rafId: number | null = null;
+    let lastOpen = false;
+    let lastOffset = 0;
     const update = () => {
+      rafId = null;
       const kbHeight = window.innerHeight - vv.height - vv.offsetTop;
-      setState({ open: kbHeight > 150, offsetTop: vv.offsetTop });
+      const open = kbHeight > 150;
+      const offsetTop = Math.round(vv.offsetTop);
+      if (open === lastOpen && offsetTop === lastOffset) return;
+      lastOpen = open;
+      lastOffset = offsetTop;
+      setState({ open, offsetTop });
+    };
+    const schedule = () => {
+      if (rafId != null) return;
+      rafId = window.requestAnimationFrame(update);
     };
     update();
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
+    vv.addEventListener("resize", schedule);
+    vv.addEventListener("scroll", schedule);
     return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
+      vv.removeEventListener("resize", schedule);
+      vv.removeEventListener("scroll", schedule);
+      if (rafId != null) window.cancelAnimationFrame(rafId);
     };
   }, []);
   return state;
@@ -888,10 +902,14 @@ const Index = () => {
           <div
             className={
               kb.open
-                ? "fixed left-0 right-0 z-50 border-b border-border bg-card shadow-md"
+                ? "fixed left-0 right-0 z-[60] border-b border-border bg-card shadow-md will-change-transform"
                 : "border-t border-border bg-card"
             }
-            style={kb.open ? { top: kb.offsetTop } : undefined}
+            style={
+              kb.open
+                ? { top: 0, transform: `translateY(${kb.offsetTop}px)` }
+                : undefined
+            }
           >
             <div className="max-w-5xl mx-auto px-4 py-1.5 flex items-center gap-2">
               <Input
