@@ -12,7 +12,7 @@ import {
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import { exportAllSheets } from "@/lib/exportExcel";
-import { getSheetNames, importSheets, parseRange, readSheetPreview, type CellRange } from "@/lib/importExcel";
+import { getSheetNames, importSheets } from "@/lib/importExcel";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -33,24 +33,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useUpdateNotifier } from "@/hooks/useUpdateNotifier";
 
 const NUM_ROWS = 36; // rows 14–49
 
 const createEmptyRows = (): GridRow[] =>
   Array.from({ length: NUM_ROWS }, () => ({}));
-
-const colLetter = (c: number): string => {
-  let s = ""; let n = c;
-  while (n >= 0) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; }
-  return s;
-};
-
-const encodeRange = (r1: number, c1: number, r2: number, c2: number): string => {
-  const rr1 = Math.min(r1, r2), rr2 = Math.max(r1, r2);
-  const cc1 = Math.min(c1, c2), cc2 = Math.max(c1, c2);
-  return `${colLetter(cc1)}${rr1 + 1}:${colLetter(cc2)}${rr2 + 1}`;
-};
 
 interface Sheet {
   name: string;
@@ -84,40 +71,6 @@ const CELL_COLORS_KEY = "lfp-cell-colors";
 const LAST_COLOR_KEY = "lfp-last-color";
 const FORMULA_BAR_KEY = "lfp-formula-bar-open";
 
-
-function useVirtualKeyboard() {
-  const [state, setState] = useState<{ open: boolean; offsetTop: number }>({ open: false, offsetTop: 0 });
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    let rafId: number | null = null;
-    let lastOpen = false;
-    let lastOffset = 0;
-    const update = () => {
-      rafId = null;
-      const kbHeight = window.innerHeight - vv.height - vv.offsetTop;
-      const open = kbHeight > 150;
-      const offsetTop = Math.round(vv.offsetTop);
-      if (open === lastOpen && offsetTop === lastOffset) return;
-      lastOpen = open;
-      lastOffset = offsetTop;
-      setState({ open, offsetTop });
-    };
-    const schedule = () => {
-      if (rafId != null) return;
-      rafId = window.requestAnimationFrame(update);
-    };
-    update();
-    vv.addEventListener("resize", schedule);
-    vv.addEventListener("scroll", schedule);
-    return () => {
-      vv.removeEventListener("resize", schedule);
-      vv.removeEventListener("scroll", schedule);
-      if (rafId != null) window.cancelAnimationFrame(rafId);
-    };
-  }, []);
-  return state;
-}
 
 type ActiveCell =
   | { source: "grid"; row: number; col: string }
@@ -191,12 +144,6 @@ const Index = () => {
   const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
-  const [dataRangeInput, setDataRangeInput] = useState("A14:J49");
-  const [notesRangeInput, setNotesRangeInput] = useState("A51:J55");
-  const [previewSheetName, setPreviewSheetName] = useState<string>("");
-  const [previewData, setPreviewData] = useState<string[][]>([]);
-  const [rangeSelectionMode, setRangeSelectionMode] = useState<"data" | "notes">("data");
-  const [dragSelect, setDragSelect] = useState<null | { startR: number; startC: number; target: "data" | "notes" }>(null);
 
   // Cell coloring state
   const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
@@ -211,8 +158,7 @@ const Index = () => {
   });
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
   const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
-  const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove" | "export">(null);
-  useUpdateNotifier();
+  const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove">(null);
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [formulaBarOpen, setFormulaBarOpen] = useState(() => {
     const v = localStorage.getItem(FORMULA_BAR_KEY);
@@ -221,7 +167,6 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem(FORMULA_BAR_KEY, formulaBarOpen ? "1" : "0");
   }, [formulaBarOpen]);
-  const kb = useVirtualKeyboard();
 
   // Anteckningsrutnät: fokuserad cell + mätt rad-bredd för dynamisk inputbredd
   const [focusedNoteCell, setFocusedNoteCell] = useState<{ r: number; c: number } | null>(null);
@@ -262,58 +207,22 @@ const Index = () => {
       title: "Ta bort aktivt blad?",
       description: "Bladet och dess innehåll kommer att tas bort permanent.",
     },
-    export: {
-      title: "Exportera till Excel?",
-      description:
-        "Obs! De tillfälliga gula markeringarna av importerade celler försvinner efter export. Egna färgmarkeringar behålls.",
-    },
   } as const;
 
-  // Persist to localStorage – debounced så att varje tangenttryck inte
-  // kör en synkron JSON.stringify av hela projektet (stort prestandalyft).
+  // Persist to localStorage
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
-      } catch { /* quota etc */ }
-    }, 250);
-    return () => window.clearTimeout(id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
   }, [sheets, activeSheet]);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      try {
-        localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
-      } catch { /* ignore */ }
-    }, 250);
-    return () => window.clearTimeout(id);
+    localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
   }, [importedCellsMap]);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      try {
-        const obj: Record<string, Record<string, Record<string, string>>> = {};
-        cellColorsMap.forEach((v, k) => { obj[k] = v; });
-        localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
-      } catch { /* ignore */ }
-    }, 250);
-    return () => window.clearTimeout(id);
+    const obj: Record<string, Record<string, Record<string, string>>> = {};
+    cellColorsMap.forEach((v, k) => { obj[k] = v; });
+    localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
   }, [cellColorsMap]);
-
-  // Spara alltid kvarvarande pending state innan sidan stängs/refreshas
-  useEffect(() => {
-    const flush = () => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
-        localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
-        const obj: Record<string, Record<string, Record<string, string>>> = {};
-        cellColorsMap.forEach((v, k) => { obj[k] = v; });
-        localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
-      } catch { /* ignore */ }
-    };
-    window.addEventListener("pagehide", flush);
-    return () => window.removeEventListener("pagehide", flush);
-  }, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
 
   useEffect(() => {
     localStorage.setItem(LAST_COLOR_KEY, lastColor);
@@ -450,44 +359,24 @@ const Index = () => {
       setImportFileBuffer(buffer);
       setAvailableSheetNames(names);
       setSelectedSheetNames(names); // select all by default
-      const first = names[0] ?? "";
-      setPreviewSheetName(first);
-      setPreviewData(first ? readSheetPreview(buffer, first) : []);
       setImportDialogOpen(true);
     };
     reader.readAsArrayBuffer(file);
     e.target.value = ""; // reset so same file can be picked again
   }, []);
 
-  useEffect(() => {
-    if (!importFileBuffer || !previewSheetName) return;
-    setPreviewData(readSheetPreview(importFileBuffer, previewSheetName, 55, 10));
-  }, [previewSheetName, importFileBuffer]);
-
   const handleImportConfirm = useCallback(() => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
-    const dataRange = parseRange(dataRangeInput);
-    const notesRange = parseRange(notesRangeInput);
-    if (!dataRange || !notesRange) {
-      toast.error("Ogiltigt cellområde");
-      return;
-    }
-    const imported = importSheets(importFileBuffer, selectedSheetNames, dataRange, notesRange);
-    const padRows = (rows: GridRow[]): GridRow[] => {
-      const out = rows.slice(0, NUM_ROWS);
-      while (out.length < NUM_ROWS) out.push({});
-      return out;
-    };
+    const imported = importSheets(importFileBuffer, selectedSheetNames);
     const newSheets: Sheet[] = imported.map((s) => ({
       ...createEmptySheet(s.name),
-      rows: padRows(s.rows),
+      rows: s.rows,
       notes: s.notes,
     }));
     // Build imported cells map
     const newImportedMap = new Map<number, Set<string>[]>();
     imported.forEach((s, sheetIdx) => {
-      const paddedRows = padRows(s.rows);
-      const rowSets: Set<string>[] = paddedRows.map((row) => {
+      const rowSets: Set<string>[] = s.rows.map((row) => {
         const keys = new Set<string>();
         for (const [k, v] of Object.entries(row)) {
           if (v) keys.add(k);
@@ -503,7 +392,7 @@ const Index = () => {
     setImportDialogOpen(false);
     setImportFileBuffer(null);
     toast.success(`${newSheets.length} blad importerade`);
-  }, [importFileBuffer, selectedSheetNames, dataRangeInput, notesRangeInput]);
+  }, [importFileBuffer, selectedSheetNames]);
 
   const toggleSheetSelection = useCallback((name: string) => {
     setSelectedSheetNames((prev) =>
@@ -776,38 +665,12 @@ const Index = () => {
       {/* Top bar */}
       <header className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={async () => {
-              const ok = window.confirm(
-                "Tvinga uppdatering av appen?\n\nAlla osparade ändringar bör sparas först. Appen laddas om och hämtar senaste versionen.",
-              );
-              if (!ok) return;
-              try {
-                if ("serviceWorker" in navigator) {
-                  const regs = await navigator.serviceWorker.getRegistrations();
-                  await Promise.all(regs.map((r) => r.unregister()));
-                }
-                if ("caches" in window) {
-                  const keys = await caches.keys();
-                  await Promise.all(keys.map((k) => caches.delete(k)));
-                }
-              } catch {
-                // ignore – fortsätt med reload ändå
-              }
-              const url = new URL(window.location.href);
-              url.searchParams.set("_uv", Date.now().toString());
-              window.location.replace(url.toString());
-            }}
-            className="flex items-center gap-2 rounded-md px-1 -mx-1 py-1 hover:bg-muted/60 active:bg-muted transition-colors"
-            aria-label="Tvinga uppdatering av appen"
-            title="Tryck för att tvinga fram en uppdatering"
-          >
+          <div className="flex items-center gap-2">
             <AirVent className="w-6 h-6 text-primary" />
             <h1 className="text-lg font-bold text-foreground tracking-tight">
               LFP
             </h1>
-          </button>
+          </div>
           {/* Hidden file inputs */}
           <input ref={projectInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadProject} />
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileSelect} />
@@ -834,7 +697,7 @@ const Index = () => {
               <Download className="w-4 h-4" />
               Import
             </Button>
-            <Button size="sm" onClick={() => setConfirmAction("export")} className="gap-1.5">
+            <Button size="sm" onClick={handleExport} className="gap-1.5">
               <Upload className="w-4 h-4" />
               Export
             </Button>
@@ -851,7 +714,7 @@ const Index = () => {
 
           {/* Mobile: Export button + dropdown menu */}
           <div className="flex md:hidden items-center gap-2">
-            <Button size="sm" onClick={() => setConfirmAction("export")} className="gap-1.5">
+            <Button size="sm" onClick={handleExport} className="gap-1.5">
               <Upload className="w-4 h-4" />
               Export
             </Button>
@@ -899,18 +762,7 @@ const Index = () => {
         </div>
         {/* Formelfält */}
         {formulaBarOpen && (
-          <div
-            className={
-              kb.open
-                ? "fixed left-0 right-0 z-[60] border-b border-border bg-card shadow-md will-change-transform"
-                : "border-t border-border bg-card"
-            }
-            style={
-              kb.open
-                ? { top: 0, transform: `translateY(${kb.offsetTop}px)` }
-                : undefined
-            }
-          >
+          <div className="border-t border-border bg-card">
             <div className="max-w-5xl mx-auto px-4 py-1.5 flex items-center gap-2">
               <Input
                 value={(() => {
@@ -1033,10 +885,9 @@ const Index = () => {
             <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Mätmetod och övriga upplysningar</span>
           </div>
           <div className="bg-grid-cell" ref={notesGridRef}>
-            {(() => {
-              const allLines = (sheet.notes || "").split("\n");
-              return Array.from({ length: 5 }).map((_, rowIdx) => {
-              const cells = (allLines[rowIdx] || "").split("\t");
+            {Array.from({ length: 5 }).map((_, rowIdx) => {
+              const lines = (sheet.notes || "").split("\n");
+              const cells = (lines[rowIdx] || "").split("\t");
               return (
                 <div
                   key={rowIdx}
@@ -1133,183 +984,32 @@ const Index = () => {
                   })}
                 </div>
               );
-              });
-            })()}
+            })}
           </div>
         </div>
       </main>
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-[98vw] w-[98vw] sm:p-5 p-3 max-h-[96dvh] overflow-hidden flex flex-col">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Importera Excel</DialogTitle>
+            <DialogTitle>Välj blad att importera</DialogTitle>
           </DialogHeader>
-          {(() => {
-            const dataRange = parseRange(dataRangeInput);
-            const notesRange = parseRange(notesRangeInput);
-            const dataValid = !!dataRange;
-            const notesValid = !!notesRange;
-            const inRange = (r: number, c: number, range: CellRange | null) =>
-              !!range && r >= range.r1 && r <= range.r2 && c >= range.c1 && c <= range.c2;
-            const cols = previewData[0]?.length ?? 0;
-            const applyDragRange = (startR: number, startC: number, endR: number, endC: number, target: "data" | "notes") => {
-              const encoded = encodeRange(startR, startC, endR, endC);
-              if (target === "data") setDataRangeInput(encoded);
-              else setNotesRangeInput(encoded);
-            };
-            const onCellDown = (r: number, c: number) => (e: React.PointerEvent) => {
-              e.preventDefault();
-              (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-              setDragSelect({ startR: r, startC: c, target: rangeSelectionMode });
-              applyDragRange(r, c, r, c, rangeSelectionMode);
-            };
-            const onCellEnter = (r: number, c: number) => () => {
-              if (!dragSelect) return;
-              applyDragRange(dragSelect.startR, dragSelect.startC, r, c, dragSelect.target);
-            };
-            return (
-              <div
-                className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden"
-                onPointerUp={() => setDragSelect(null)}
-                onPointerLeave={() => setDragSelect(null)}
-              >
-                <div className="flex flex-wrap gap-5">
-                  <div className="flex-1 min-w-[220px]">
-                    <div className="text-sm font-medium mb-2 text-muted-foreground">Blad att importera</div>
-                    <div className="flex flex-wrap gap-x-5 gap-y-2">
-                      {availableSheetNames.map((name) => (
-                        <label key={name} className="flex items-center gap-2 cursor-pointer text-sm min-h-[40px] px-1">
-                          <Checkbox
-                            className="h-5 w-5"
-                            checked={selectedSheetNames.includes(name)}
-                            onCheckedChange={() => toggleSheetSelection(name)}
-                          />
-                          <span className="truncate">{name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="min-w-[220px]">
-                    <div className="text-sm font-medium mb-2 text-muted-foreground">Förhandsvisa blad</div>
-                    <select
-                      className="w-full border rounded-md px-3 h-11 text-sm bg-background"
-                      value={previewSheetName}
-                      onChange={(e) => setPreviewSheetName(e.target.value)}
-                    >
-                      {availableSheetNames.map((n) => (
-                        <option key={n} value={n}>{n}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex-1 min-w-[260px]">
-                    <label className="text-sm font-medium mb-1.5 text-muted-foreground flex items-center gap-2">
-                      <span className="inline-block w-3.5 h-3.5 rounded-sm bg-primary/30 ring-1 ring-primary/60" />
-                      Cellområde – Data
-                      <button
-                        type="button"
-                        onClick={() => setRangeSelectionMode("data")}
-                        className={`ml-auto text-xs px-2.5 h-8 rounded-md border transition-colors ${rangeSelectionMode === "data" ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
-                      >
-                        {rangeSelectionMode === "data" ? "Markerar nu" : "Markera i tabell"}
-                      </button>
-                    </label>
-                    <Input
-                      value={dataRangeInput}
-                      onChange={(e) => setDataRangeInput(e.target.value)}
-                      placeholder="A14:J49"
-                      className={`h-11 text-base ${dataValid ? "" : "border-destructive focus-visible:ring-destructive"}`}
-                    />
-                    {!dataValid && <p className="text-xs text-destructive mt-1">Ogiltigt format (t.ex. A14:J49)</p>}
-                  </div>
-                  <div className="flex-1 min-w-[260px]">
-                    <label className="text-sm font-medium mb-1.5 text-muted-foreground flex items-center gap-2">
-                      <span className="inline-block w-3.5 h-3.5 rounded-sm bg-amber-300/60 ring-1 ring-amber-500" />
-                      Cellområde – Anteckningar
-                      <button
-                        type="button"
-                        onClick={() => setRangeSelectionMode("notes")}
-                        className={`ml-auto text-xs px-2.5 h-8 rounded-md border transition-colors ${rangeSelectionMode === "notes" ? "bg-amber-500 text-white border-amber-500" : "bg-background hover:bg-muted"}`}
-                      >
-                        {rangeSelectionMode === "notes" ? "Markerar nu" : "Markera i tabell"}
-                      </button>
-                    </label>
-                    <Input
-                      value={notesRangeInput}
-                      onChange={(e) => setNotesRangeInput(e.target.value)}
-                      placeholder="A51:J55"
-                      className={`h-11 text-base ${notesValid ? "" : "border-destructive focus-visible:ring-destructive"}`}
-                    />
-                    {!notesValid && <p className="text-xs text-destructive mt-1">Ogiltigt format (t.ex. A51:J55)</p>}
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Tips: klicka eller dra i tabellen nedan för att markera det aktiva området ({rangeSelectionMode === "data" ? "Data" : "Anteckningar"}).
-                </p>
-                <div className="border rounded-md flex-1 min-h-0 overflow-auto bg-background select-none">
-                  {previewData.length === 0 ? (
-                    <div className="p-4 text-sm text-muted-foreground">Ingen förhandsvisning</div>
-                  ) : (
-                    <table className="border-collapse text-[11px] font-mono w-full table-fixed">
-                      <thead className="sticky top-0 z-20 bg-muted">
-                        <tr>
-                          <th className="sticky left-0 z-30 bg-muted border border-border w-8 min-w-8 h-6"></th>
-                          {Array.from({ length: cols }, (_, c) => (
-                            <th key={c} className="border border-border px-1 h-6 text-center font-medium">
-                              {colLetter(c)}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {previewData.map((row, r) => (
-                          <tr key={r}>
-                            <td className="sticky left-0 z-10 bg-muted border border-border w-8 min-w-8 text-center font-medium h-6">
-                              {r + 1}
-                            </td>
-                            {Array.from({ length: cols }, (_, c) => {
-                              const inData = inRange(r, c, dataRange);
-                              const inNotes = inRange(r, c, notesRange);
-                              const cls = inNotes
-                                ? "bg-amber-200/50 ring-1 ring-inset ring-amber-500/60"
-                                : inData
-                                  ? "bg-primary/15 ring-1 ring-inset ring-primary/50"
-                                  : "";
-                              return (
-                                <td
-                                  key={c}
-                                  className={`border border-border px-1 h-6 whitespace-nowrap overflow-hidden text-ellipsis cursor-cell ${cls}`}
-                                  title={row[c] ?? ""}
-                                  onPointerDown={onCellDown(r, c)}
-                                  onPointerEnter={onCellEnter(r, c)}
-                                >
-                                  {row[c] ?? ""}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" size="lg" onClick={() => setImportDialogOpen(false)}>
+          <div className="space-y-3 py-2">
+            {availableSheetNames.map((name) => (
+              <label key={name} className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={selectedSheetNames.includes(name)}
+                  onCheckedChange={() => toggleSheetSelection(name)}
+                />
+                <span className="text-sm">{name}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
               Avbryt
             </Button>
-            <Button
-              size="lg"
-              onClick={handleImportConfirm}
-              disabled={
-                selectedSheetNames.length === 0 ||
-                !parseRange(dataRangeInput) ||
-                !parseRange(notesRangeInput)
-              }
-            >
-              Bekräfta import ({selectedSheetNames.length} blad)
+            <Button onClick={handleImportConfirm} disabled={selectedSheetNames.length === 0}>
+              Importera ({selectedSheetNames.length} blad)
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1349,7 +1049,6 @@ const Index = () => {
                 if (confirmAction === "new") handleNewProtocol();
                 else if (confirmAction === "clear") handleClear();
                 else if (confirmAction === "remove") handleRemoveSheet();
-                else if (confirmAction === "export") handleExport();
                 setConfirmAction(null);
               }}
             >
