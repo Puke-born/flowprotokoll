@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, FilePlus2, Save, FolderOpen, MoreVertical } from "lucide-react";
+import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, FilePlus2, Save, FolderOpen, MoreVertical, RefreshCw } from "lucide-react";
+import { initUpdateCheck, forceHardReload } from "@/lib/updateCheck";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
@@ -158,7 +159,8 @@ const Index = () => {
   });
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
   const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
-  const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove">(null);
+  const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove" | "export" | "reload">(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [formulaBarOpen, setFormulaBarOpen] = useState(() => {
     const v = localStorage.getItem(FORMULA_BAR_KEY);
@@ -184,14 +186,22 @@ const Index = () => {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  const measureCacheRef = useRef<Map<string, number>>(new Map());
   const measureNoteText = useCallback((text: string) => {
     if (typeof document === "undefined") return 0;
-    const canvas = (measureNoteText as unknown as { _c?: HTMLCanvasElement })._c
-      ?? ((measureNoteText as unknown as { _c?: HTMLCanvasElement })._c = document.createElement("canvas"));
+    const cache = measureCacheRef.current;
+    const cached = cache.get(text);
+    if (cached !== undefined) return cached;
+    const holder = measureNoteText as unknown as { _c?: HTMLCanvasElement };
+    const canvas = holder._c ?? (holder._c = document.createElement("canvas"));
     const ctx = canvas.getContext("2d");
     if (!ctx) return 0;
     ctx.font = '13px Arial, Helvetica, sans-serif';
-    return Math.ceil(ctx.measureText(text).width);
+    const w = Math.ceil(ctx.measureText(text).width);
+    // Bound cache size so it can't grow unbounded during long sessions.
+    if (cache.size > 2000) cache.clear();
+    cache.set(text, w);
+    return w;
   }, []);
 
   const confirmConfig = {
@@ -207,22 +217,66 @@ const Index = () => {
       title: "Ta bort aktivt blad?",
       description: "Bladet och dess innehåll kommer att tas bort permanent.",
     },
+    export: {
+      title: "Exportera till Excel?",
+      description: "De tillfälliga gula markeringarna från importen försvinner när du exporterar. Övriga färgmarkerade celler behålls.",
+    },
+    reload: {
+      title: "Ladda om appen?",
+      description: "Sparade projekt påverkas inte, men osparade ändringar kan gå förlorade.",
+    },
   } as const;
 
-  // Persist to localStorage
+  // Persist to localStorage (debounced to avoid JSON.stringify on every keystroke)
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+    const id = window.setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+    }, 400);
+    return () => window.clearTimeout(id);
   }, [sheets, activeSheet]);
 
   useEffect(() => {
-    localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+    const id = window.setTimeout(() => {
+      localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+    }, 400);
+    return () => window.clearTimeout(id);
   }, [importedCellsMap]);
 
   useEffect(() => {
-    const obj: Record<string, Record<string, Record<string, string>>> = {};
-    cellColorsMap.forEach((v, k) => { obj[k] = v; });
-    localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+    const id = window.setTimeout(() => {
+      const obj: Record<string, Record<string, Record<string, string>>> = {};
+      cellColorsMap.forEach((v, k) => { obj[k] = v; });
+      localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+    }, 400);
+    return () => window.clearTimeout(id);
   }, [cellColorsMap]);
+
+  // Update-checker: check every 60 min + on window focus.
+  useEffect(() => {
+    const stop = initUpdateCheck(() => setUpdateAvailable(true), 60 * 60 * 1000);
+    return () => stop && stop();
+  }, []);
+
+  // Keep sticky header pinned to the visible viewport even when the on-screen
+  // keyboard shrinks the viewport on tablets/phones.
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = headerRef.current;
+    if (!vv || !el) return;
+    const update = () => {
+      // offsetTop is the number of pixels the visual viewport is offset from
+      // the layout viewport (positive when the keyboard covers the bottom).
+      el.style.transform = `translateY(${vv.offsetTop}px)`;
+    };
+    update();
+    vv.addEventListener("scroll", update);
+    vv.addEventListener("resize", update);
+    return () => {
+      vv.removeEventListener("scroll", update);
+      vv.removeEventListener("resize", update);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(LAST_COLOR_KEY, lastColor);
@@ -480,12 +534,23 @@ const Index = () => {
     e.target.value = "";
   }, []);
 
-  const handleExport = useCallback(() => {
+  const doExport = useCallback(() => {
     const cellColorsForExport: Record<string, Record<string, string>>[] = sheets.map((_, i) => cellColorsMap.get(i) || {});
     exportAllSheets(sheets, cellColorsForExport);
     setImportedCellsMap(new Map());
     toast.success("Excel-fil exporterad!");
   }, [sheets, cellColorsMap]);
+
+  const handleExport = useCallback(() => {
+    // Only warn when there are actually temporary yellow highlights present.
+    let hasImported = false;
+    importedCellsMap.forEach((rows) => {
+      if (hasImported) return;
+      for (const s of rows) { if (s && s.size > 0) { hasImported = true; break; } }
+    });
+    if (hasImported) setConfirmAction("export");
+    else doExport();
+  }, [importedCellsMap, doExport]);
 
   const handleClear = useCallback(() => {
     setSheets((prev) => {
@@ -662,15 +727,36 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <header className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      {/* Update banner */}
+      {updateAvailable && (
+        <div className="sticky top-0 z-20 bg-primary text-primary-foreground text-sm px-4 py-2 flex items-center justify-between gap-3 shadow">
+          <span className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            En ny version av appen finns tillgänglig.
+          </span>
           <div className="flex items-center gap-2">
-            <AirVent className="w-6 h-6 text-primary" />
-            <h1 className="text-lg font-bold text-foreground tracking-tight">
-              LFP
-            </h1>
+            <Button size="sm" variant="secondary" className="h-7" onClick={() => setConfirmAction("reload")}>
+              Ladda om
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => setUpdateAvailable(false)}>
+              Senare
+            </Button>
           </div>
+        </div>
+      )}
+
+      {/* Top bar */}
+      <header ref={headerRef} className="sticky top-0 z-10 bg-card border-b border-border shadow-sm will-change-transform">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setConfirmAction("reload")}
+            title="Tvinga uppdatering av appen"
+            className="flex items-center gap-2 rounded-md px-1 -mx-1 hover:bg-muted transition-colors"
+          >
+            <AirVent className="w-6 h-6 text-primary" />
+            <h1 className="text-lg font-bold text-foreground tracking-tight">LFP</h1>
+          </button>
           {/* Hidden file inputs */}
           <input ref={projectInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadProject} />
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileSelect} />
@@ -1049,6 +1135,8 @@ const Index = () => {
                 if (confirmAction === "new") handleNewProtocol();
                 else if (confirmAction === "clear") handleClear();
                 else if (confirmAction === "remove") handleRemoveSheet();
+                else if (confirmAction === "export") doExport();
+                else if (confirmAction === "reload") { setConfirmAction(null); forceHardReload(); return; }
                 setConfirmAction(null);
               }}
             >
