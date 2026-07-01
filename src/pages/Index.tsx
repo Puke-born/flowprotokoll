@@ -719,15 +719,36 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <header className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      {/* Update banner */}
+      {updateAvailable && (
+        <div className="sticky top-0 z-20 bg-primary text-primary-foreground text-sm px-4 py-2 flex items-center justify-between gap-3 shadow">
+          <span className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            En ny version av appen finns tillgänglig.
+          </span>
           <div className="flex items-center gap-2">
-            <AirVent className="w-6 h-6 text-primary" />
-            <h1 className="text-lg font-bold text-foreground tracking-tight">
-              LFP
-            </h1>
+            <Button size="sm" variant="secondary" className="h-7" onClick={() => setConfirmAction("reload")}>
+              Ladda om
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => setUpdateAvailable(false)}>
+              Senare
+            </Button>
           </div>
+        </div>
+      )}
+
+      {/* Top bar */}
+      <header ref={headerRef} className="sticky top-0 z-10 bg-card border-b border-border shadow-sm will-change-transform">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setConfirmAction("reload")}
+            title="Tvinga uppdatering av appen"
+            className="flex items-center gap-2 rounded-md px-1 -mx-1 hover:bg-muted transition-colors"
+          >
+            <AirVent className="w-6 h-6 text-primary" />
+            <h1 className="text-lg font-bold text-foreground tracking-tight">LFP</h1>
+          </button>
           {/* Hidden file inputs */}
           <input ref={projectInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadProject} />
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileSelect} />
