@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, FilePlus2, Save, FolderOpen, MoreVertical } from "lucide-react";
+import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, FilePlus2, Save, FolderOpen, MoreVertical, RefreshCw } from "lucide-react";
+import { initUpdateCheck, forceHardReload } from "@/lib/updateCheck";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
@@ -158,7 +159,8 @@ const Index = () => {
   });
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
   const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
-  const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove">(null);
+  const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove" | "export" | "reload">(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [formulaBarOpen, setFormulaBarOpen] = useState(() => {
     const v = localStorage.getItem(FORMULA_BAR_KEY);
@@ -207,22 +209,66 @@ const Index = () => {
       title: "Ta bort aktivt blad?",
       description: "Bladet och dess innehåll kommer att tas bort permanent.",
     },
+    export: {
+      title: "Exportera till Excel?",
+      description: "De tillfälliga gula markeringarna från importen försvinner när du exporterar. Övriga färgmarkerade celler behålls.",
+    },
+    reload: {
+      title: "Ladda om appen?",
+      description: "Sparade projekt påverkas inte, men osparade ändringar kan gå förlorade.",
+    },
   } as const;
 
-  // Persist to localStorage
+  // Persist to localStorage (debounced to avoid JSON.stringify on every keystroke)
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+    const id = window.setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+    }, 400);
+    return () => window.clearTimeout(id);
   }, [sheets, activeSheet]);
 
   useEffect(() => {
-    localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+    const id = window.setTimeout(() => {
+      localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+    }, 400);
+    return () => window.clearTimeout(id);
   }, [importedCellsMap]);
 
   useEffect(() => {
-    const obj: Record<string, Record<string, Record<string, string>>> = {};
-    cellColorsMap.forEach((v, k) => { obj[k] = v; });
-    localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+    const id = window.setTimeout(() => {
+      const obj: Record<string, Record<string, Record<string, string>>> = {};
+      cellColorsMap.forEach((v, k) => { obj[k] = v; });
+      localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+    }, 400);
+    return () => window.clearTimeout(id);
   }, [cellColorsMap]);
+
+  // Update-checker: check every 60 min + on window focus.
+  useEffect(() => {
+    const stop = initUpdateCheck(() => setUpdateAvailable(true), 60 * 60 * 1000);
+    return () => stop && stop();
+  }, []);
+
+  // Keep sticky header pinned to the visible viewport even when the on-screen
+  // keyboard shrinks the viewport on tablets/phones.
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = headerRef.current;
+    if (!vv || !el) return;
+    const update = () => {
+      // offsetTop is the number of pixels the visual viewport is offset from
+      // the layout viewport (positive when the keyboard covers the bottom).
+      el.style.transform = `translateY(${vv.offsetTop}px)`;
+    };
+    update();
+    vv.addEventListener("scroll", update);
+    vv.addEventListener("resize", update);
+    return () => {
+      vv.removeEventListener("scroll", update);
+      vv.removeEventListener("resize", update);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(LAST_COLOR_KEY, lastColor);
@@ -480,12 +526,23 @@ const Index = () => {
     e.target.value = "";
   }, []);
 
-  const handleExport = useCallback(() => {
+  const doExport = useCallback(() => {
     const cellColorsForExport: Record<string, Record<string, string>>[] = sheets.map((_, i) => cellColorsMap.get(i) || {});
     exportAllSheets(sheets, cellColorsForExport);
     setImportedCellsMap(new Map());
     toast.success("Excel-fil exporterad!");
   }, [sheets, cellColorsMap]);
+
+  const handleExport = useCallback(() => {
+    // Only warn when there are actually temporary yellow highlights present.
+    let hasImported = false;
+    importedCellsMap.forEach((rows) => {
+      if (hasImported) return;
+      for (const s of rows) { if (s && s.size > 0) { hasImported = true; break; } }
+    });
+    if (hasImported) setConfirmAction("export");
+    else doExport();
+  }, [importedCellsMap, doExport]);
 
   const handleClear = useCallback(() => {
     setSheets((prev) => {
