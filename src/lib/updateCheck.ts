@@ -66,11 +66,16 @@ export function initUpdateCheck(
 
 export function forceHardReload() {
   // Bust caches then reload. Service worker (if any) is unregistered elsewhere.
+  const reload = () => {
+    const url = window.location.pathname + "?_r=" + Date.now();
+    window.location.replace(url);
+  };
   if ("caches" in window) {
-    caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n)))).finally(() => {
-      window.location.replace(window.location.pathname + "?_r=" + Date.now());
-    });
+    caches
+      .keys()
+      .then((names) => Promise.all(names.map((n) => caches.delete(n))))
+      .finally(reload);
   } else {
-    window.location.replace(window.location.pathname + "?_r=" + Date.now());
+    reload();
   }
 }
