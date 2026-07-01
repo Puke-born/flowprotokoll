@@ -186,14 +186,22 @@ const Index = () => {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  const measureCacheRef = useRef<Map<string, number>>(new Map());
   const measureNoteText = useCallback((text: string) => {
     if (typeof document === "undefined") return 0;
-    const canvas = (measureNoteText as unknown as { _c?: HTMLCanvasElement })._c
-      ?? ((measureNoteText as unknown as { _c?: HTMLCanvasElement })._c = document.createElement("canvas"));
+    const cache = measureCacheRef.current;
+    const cached = cache.get(text);
+    if (cached !== undefined) return cached;
+    const holder = measureNoteText as unknown as { _c?: HTMLCanvasElement };
+    const canvas = holder._c ?? (holder._c = document.createElement("canvas"));
     const ctx = canvas.getContext("2d");
     if (!ctx) return 0;
     ctx.font = '13px Arial, Helvetica, sans-serif';
-    return Math.ceil(ctx.measureText(text).width);
+    const w = Math.ceil(ctx.measureText(text).width);
+    // Bound cache size so it can't grow unbounded during long sessions.
+    if (cache.size > 2000) cache.clear();
+    cache.set(text, w);
+    return w;
   }, []);
 
   const confirmConfig = {
