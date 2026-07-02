@@ -101,7 +101,11 @@ export async function exportAllSheets(
   {
     const mediaWb = new ExcelJS.Workbook();
     await mediaWb.xlsx.load(templateBuffer.slice(0));
-    mediaWb.media.forEach((m) => outWb.media.push({ ...m }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const srcMedia = (mediaWb as any).media as any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dstMedia = (outWb as any).media as any[];
+    srcMedia.forEach((m) => dstMedia.push({ ...m }));
   }
 
   for (let i = 0; i < total; i++) {
