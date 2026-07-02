@@ -534,11 +534,16 @@ const Index = () => {
     e.target.value = "";
   }, []);
 
-  const doExport = useCallback(() => {
+  const doExport = useCallback(async () => {
     const cellColorsForExport: Record<string, Record<string, string>>[] = sheets.map((_, i) => cellColorsMap.get(i) || {});
-    exportAllSheets(sheets, cellColorsForExport);
-    setImportedCellsMap(new Map());
-    toast.success("Excel-fil exporterad!");
+    try {
+      await exportAllSheets(sheets, cellColorsForExport);
+      setImportedCellsMap(new Map());
+      toast.success("Excel-fil exporterad!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Kunde inte exportera Excel-fil");
+    }
   }, [sheets, cellColorsMap]);
 
   const handleExport = useCallback(() => {
