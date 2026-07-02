@@ -1,46 +1,43 @@
 ## Mål
 
-Få anteckningsrutnätet "Mätmetod och övriga upplysningar" att visa texten lika tydligt som i Excel, anpassat både för surfplatta och A4-utskrift. Excel-referens: 10 kolumner × 64 px bred, 5 rader × 21 px hög, Arial 10 pt.
+Byt ut nuvarande "från-noll"-export mot en export som utgår från din uppladdade mall `OVK-LFP_Mall.xlsx`. All formatering, ramar, rubriker, förifyllda etiketter och bildobjektet i mallen bevaras. Varje protokoll-blad i appen blir en full kopia av mallbladet med bara värdena ifyllda.
 
-## Problem idag
+## Så gör vi
 
-I `src/pages/Index.tsx` (raderna ~880–973) renderas anteckningsrutnätet med:
+1. **Lägg in mallen i projektet**
+  - Kopiera den uppladdade filen till `public/OVK-LFP_Mall.xlsx` så den kan hämtas i runtime med `fetch('/OVK-LFP_Mall.xlsx')`. Filen följer med i bygget och funkar även offline via befintlig PWA-cache (lägger till den i precache-listan i `vite.config.ts` `workbox.globPatterns`/`includeAssets`).
+2. **Byt exportbibliotek till ExcelJS**
+  - `xlsx-js-style` klarar inte att bevara inbäddade bilder från en mall. Installera `exceljs` (`bun add exceljs`) och skriv om `src/lib/exportExcel.ts`.
+  - `xlsx` (för import) behålls oförändrat i `src/lib/importExcel.ts`.
+3. **Ny exportlogik (`exportExcel.ts`)**
+  - Hämta mallen som `ArrayBuffer`.
+  - Skapa ett tomt slutgiltigt `ExcelJS.Workbook`.
+  - För varje protokoll-blad i appen:
+  1. Ladda mallen i en temporär workbook (en gång per blad, så bild/ramar/styles följer med rent).
+  2. Ta mallbladet, döp om det till bladets namn + "LFP" (om det inte redan står) (samma sanering som idag: max 31 tecken, ta bort `< > : " / \\ | ? *`).
+  3. Skriv värden till exakt samma celler som idag använder — mallen har identisk layout:
+    - `C4` Kund, `C5` Anläggning, `C6` System, `C7` Utfört av
+    - `J4` Plan, `J5` Sid nr (`i+1/total`), `J6` Arb.nr, `J7` Datum
+    - Rader `A14:J49` → `rows[0..35]` (samma kolumnordning som idag)
+    - `A51:J55` → 5 anteckningsrader (`\t`-splittade som idag)
+    - `A50` lämnas orörd (mallen har redan "Mätmetod och övriga upplysningar.")
+  4. Kopiera det ifyllda mallbladet in i slutgiltiga workbook via `workbook.addWorksheet(...).model = tempSheet.model` så bild och alla styles följer med. (ExcelJS bevarar workbook-media när `model` sätts.)
+    plicera användarens manuellt satta cellfärger (`cellColorsPerSheet`) ovanpå mallens fyllning genom `cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb } }` för `A14:J49`-cellerna som har färg.
+    riv ut med `workbook.xlsx.writeBuffer()` och trigga nedladdning via `Blob` + `URL.createObjectURL`. Filnamnet behålls: `LFP [Anläggning] [Datum].xlsx`.
+4. **Rensning**
+  - Ta bort `xlsx-js-style` från `package.json` när det inte längre används (behåll om annat kod importerar; annars `bun remove xlsx-js-style`).
+  - Ingen ändring i UI, import, färgpalett, PWA-flöden eller andra filer.
 
-- `text-sm font-mono` (monospace, ~14 px) — inte Arial 10 pt → texten ser mycket bredare ut än i Excel och får inte plats.
-- `h-9` (36 px) per rad — ej Excel-likt och slösar vertikalt utrymme.
-- Overlay-divens text använder `whitespace-nowrap` med `width: max-content` inuti en cell-container utan `overflow: visible` på rad-nivå (`overflow-hidden` på raden) → text klipps vid radens högerkant, men angränsande celler kan dölja den eftersom varje cell ligger i en egen `relative`-container med fallande z-index.
-- Mätfunktionen `measureNoteText` använder 14 px monospace, vilket gör fokuserings­bredden fel när vi byter typsnitt.
+## Tekniska detaljer
 
-## Förslag på ändringar (endast `src/pages/Index.tsx`)
-
-1. **Typsnitt och storlek**
-   - Byt cellernas klasser från `text-sm font-mono` till en Arial-baserad stil i 10 pt:
-     `font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.1;`
-     (10 pt ≈ 13.33 px; 13 px ger samma intryck som Excel på A4 och tablet).
-   - Gäller både `<input>` och overlay-`<div>`.
-
-2. **Radhöjd**
-   - Sänk radhöjd från `h-9` (36 px) till ~`h-[26px]` (~26 px). Excel = 21 px men på tablet behöver vi tap-target ≥ 24 px. 26 px ger Excel-känsla men är fortfarande bekvämt på pekskärm. Justera även overlay-divens höjd och `top`-offset.
-   - På utskrift (A4): lägg till en `@media print`-regel via inline `<style>` eller Tailwind `print:` så raderna kollapsar till exakt 21 px för 1:1 med Excel.
-
-3. **Excel-likt textöverflöde**
-   - Behåll overlay-`<div>` med `whitespace-nowrap` men ta bort `overflow-hidden` på rad-containern och låt overlay flöda in i nästa (tom) cell, precis som Excel gör. Lägg `pointer-events: none` (redan satt) så input i nästa cell går att klicka. Sätt `overflow: visible` på cell-divsen och håll en hög z-index på overlayen så den syns över nästa cells transparenta input.
-   - Säkerställ att overlay döljs så fort nästa cell har egen text (kontrollera `cells[colIdx+1]` — om icke-tom: klipp overlayen vid cellgränsen genom att sätta `max-width: 100%` på den).
-
-4. **Konsekvent mätning**
-   - Uppdatera `measureNoteText` så fontspec matchar nya stilen: `13px Arial, Helvetica, sans-serif`. Behövs för korrekt bredd vid fokus.
-
-5. **Bredd / kolumnfördelning**
-   - Behåll `grid-cols-10` (10 lika breda kolumner). På A4 print blir det 10 × ~64 px ≈ 640 px om vi sätter total bredd 640 px i `@media print`. Lägg `@media print { .notes-grid { width: 640px; } }` på containern.
-
-6. **Tablet-anpassning**
-   - Inga ändringar i layout för surfplatta utöver radhöjden ovan; cellbredden följer container (responsivt). Tap-target 26 px räcker för enkel cell-fokus eftersom man oftast tappar på text-overlayen.
-
-## Inga andra ändringar
-
-- Datamodell, import, export och övrig UI lämnas oförändrade.
-- `AirflowGrid.tsx` ändras inte.
+- `public/OVK-LFP_Mall.xlsx` serveras från roten. Fetchas med `fetch(import.meta.env.BASE_URL + 'OVK-LFP_Mall.xlsx')` för att fungera under valfri deploy-bas.
+- ExcelJS `worksheet.model = other.model` kopierar rader, celler, sammanslagningar, kolumnbredder, radhöjder och drawing-referenser. Bilden ligger på workbook-nivå (`workbook.media`) och binds via drawings — därför laddas mallen på nytt per blad så att varje bladkopia får sin egen media-referens korrekt.
+- ARGB för fill är 8-siffrig hex (`FF` + RRGGBB). Konvertering görs från de befintliga hex-värdena i `cellColorsPerSheet`.
+- Import-flödet (import från excel) rörs inte; det läser fortfarande värden med `xlsx`.
 
 ## Filer som ändras
 
-- `src/pages/Index.tsx` (anteckningsrutnätet ~880–973 + `measureNoteText` ~187–195).
+- Ny: `public/OVK-LFP_Mall.xlsx` (kopia av uppladdad mall)
+- `src/lib/exportExcel.ts` — omskrivning enligt ovan
+- `vite.config.ts` — lägga till mallen i PWA precache
+- `package.json` — `bun add exceljs` (ev. `bun remove xlsx-js-style`)
