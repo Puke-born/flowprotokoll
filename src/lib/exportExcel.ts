@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx-js-style";
+import ExcelJS from "exceljs";
 import type { GridRow } from "@/components/AirflowGrid";
 
 interface Sheet {
@@ -20,92 +20,112 @@ const COL_KEYS = [
   "franluft_inst", "franluft_beraknat", "franluft_uppmat",
 ];
 
-function hexToXlsxRgb(hex: string): string {
-  return hex.replace("#", "").toUpperCase();
+function hexToArgb(hex: string): string {
+  const clean = hex.replace("#", "").toUpperCase();
+  return clean.length === 6 ? `FF${clean}` : clean;
 }
 
-function buildSheet(sheet: Sheet, sidNr: string): (string | number | null)[][] {
-  const wsData: (string | number | null)[][] = [];
+function sanitizeSheetName(name: string): string {
+  return name.replace(/[<>:"/\\|?*]/g, "").slice(0, 31) || "Blad";
+}
 
-  wsData.push([]);
-  wsData.push([null, null, null, "OVK - Luftflödesprotokoll"]);
-  wsData.push([]);
-  wsData.push(["Kund:", null, sheet.kund, null, null, null, null, "Plan:", null, sheet.plan]);
-  wsData.push(["Anläggning:", null, sheet.anlaggning, null, null, null, null, "Sid nr:", null, sidNr]);
-  wsData.push(["System:", null, sheet.system, null, null, null, null, "Arb.nr:", null, sheet.arbNr]);
-  wsData.push(["Utfört av:", null, sheet.utfordAv, null, null, null, null, "Datum:", null, sheet.datum]);
-  wsData.push([]);
-  wsData.push([null, null, "Tilluft", null, "Luftmängd", null, "Frånluft", null, "Luftmängd"]);
-  wsData.push([]);
-  wsData.push(["Rum"]);
-  wsData.push([null, null, null, "Inst", "Luftflöde", null, null, "Inst", "Luftflöde"]);
-  wsData.push([null, null, "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt", "Dontyp", "Pa/K-f", "Beräknat", "Uppmätt"]);
+function fillSheet(ws: ExcelJS.Worksheet, sheet: Sheet, sidNr: string, colors?: Record<string, Record<string, string>>) {
+  // Header fields
+  ws.getCell("C4").value = sheet.kund || null;
+  ws.getCell("C5").value = sheet.anlaggning || null;
+  ws.getCell("C6").value = sheet.system || null;
+  ws.getCell("C7").value = sheet.utfordAv || null;
+  ws.getCell("J4").value = sheet.plan || null;
+  ws.getCell("J5").value = sidNr;
+  ws.getCell("J6").value = sheet.arbNr || null;
+  ws.getCell("J7").value = sheet.datum || null;
 
+  // Grid rows A14:J49 (36 rows)
   for (let i = 0; i < 36; i++) {
-    const row = sheet.rows[i] || {};
-    wsData.push([
-      row.rum_nr || null,
-      row.rum_namn || null,
-      row.tilluft_dontyp || null,
-      row.tilluft_inst || null,
-      row.tilluft_beraknat || null,
-      row.tilluft_uppmat || null,
-      row.franluft_dontyp || null,
-      row.franluft_inst || null,
-      row.franluft_beraknat || null,
-      row.franluft_uppmat || null,
-    ]);
+    const row = sheet.rows[i] || ({} as GridRow);
+    const rowNum = 14 + i;
+    const values = [
+      row.rum_nr, row.rum_namn, row.tilluft_dontyp, row.tilluft_inst,
+      row.tilluft_beraknat, row.tilluft_uppmat, row.franluft_dontyp,
+      row.franluft_inst, row.franluft_beraknat, row.franluft_uppmat,
+    ];
+    values.forEach((v, c) => {
+      if (v !== undefined && v !== null && v !== "") {
+        ws.getCell(rowNum, c + 1).value = v as string;
+      }
+    });
   }
 
-  // Row 50 (index 49): title in A50
-  wsData.push(["Mätmetod och övriga upplysningar"]);
-  // Rows 51-55 (index 50-54): up to 5 note lines in A
+  // Notes A51:J55
   const noteLines = (sheet.notes || "").split("\n");
   for (let i = 0; i < 5; i++) {
     const cells = (noteLines[i] || "").split("\t");
-    const row: (string | null)[] = [];
     for (let c = 0; c < 10; c++) {
-      row.push(cells[c] || null);
+      if (cells[c]) ws.getCell(51 + i, c + 1).value = cells[c];
     }
-    wsData.push(row);
   }
 
-  return wsData;
+  // User-picked cell colors on grid
+  if (colors) {
+    Object.entries(colors).forEach(([rowIdxStr, cols]) => {
+      const rowIdx = Number(rowIdxStr);
+      Object.entries(cols).forEach(([colKey, hex]) => {
+        const colIdx = COL_KEYS.indexOf(colKey);
+        if (colIdx === -1) return;
+        const cell = ws.getCell(14 + rowIdx, colIdx + 1);
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: hexToArgb(hex) },
+        };
+      });
+    });
+  }
 }
 
-export function exportAllSheets(sheets: Sheet[], cellColorsPerSheet?: Record<string, Record<string, string>>[]) {
-  const wb = XLSX.utils.book_new();
-  const total = sheets.length;
-  const DATA_START_ROW = 13; // 0-indexed row where grid data starts (row 14 in the sheet)
-
-  sheets.forEach((sheet, i) => {
-    const sidNr = `${i + 1}/${total}`;
-    const wsData = buildSheet(sheet, sidNr);
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Apply cell colors
-    const colors = cellColorsPerSheet?.[i];
-    if (colors) {
-      Object.entries(colors).forEach(([rowIdxStr, cols]) => {
-        const rowIdx = Number(rowIdxStr);
-        Object.entries(cols).forEach(([colKey, hex]) => {
-          const colIdx = COL_KEYS.indexOf(colKey);
-          if (colIdx === -1) return;
-          const cellRef = XLSX.utils.encode_cell({ r: DATA_START_ROW + rowIdx, c: colIdx });
-          if (!ws[cellRef]) ws[cellRef] = { t: "s", v: "" };
-          ws[cellRef].s = {
-            fill: { patternType: "solid", fgColor: { rgb: hexToXlsxRgb(hex) } },
-          };
-        });
-      });
-    }
-
-    const name = sheet.name || (total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`);
-    XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+export async function exportAllSheets(
+  sheets: Sheet[],
+  cellColorsPerSheet?: Record<string, Record<string, string>>[]
+) {
+  const templateUrl = `${import.meta.env.BASE_URL}OVK-LFP_Mall.xlsx`;
+  const templateBuffer = await fetch(templateUrl).then((r) => {
+    if (!r.ok) throw new Error(`Kunde inte ladda mall: ${r.status}`);
+    return r.arrayBuffer();
   });
+
+  const outWb = new ExcelJS.Workbook();
+  const total = sheets.length;
+
+  for (let i = 0; i < total; i++) {
+    const sheet = sheets[i];
+    const sidNr = `${i + 1}/${total}`;
+
+    // Load a fresh copy of the template per sheet so images/styles bind cleanly
+    const tmpWb = new ExcelJS.Workbook();
+    await tmpWb.xlsx.load(templateBuffer.slice(0));
+    const tmpWs = tmpWb.worksheets[0];
+
+    fillSheet(tmpWs, sheet, sidNr, cellColorsPerSheet?.[i]);
+
+    const name = sanitizeSheetName(
+      sheet.name || (total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`)
+    );
+    const newWs = outWb.addWorksheet(name);
+    newWs.model = { ...tmpWs.model, name };
+  }
 
   const anlaggning = sheets[0]?.anlaggning?.replace(/[/\\:*?"<>|]/g, "").trim() || "export";
   const datum = sheets[0]?.datum || new Date().toISOString().slice(0, 10);
   const filename = `LFP ${anlaggning} ${datum}.xlsx`;
-  XLSX.writeFile(wb, filename);
+
+  const buf = await outWb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
