@@ -96,6 +96,14 @@ export async function exportAllSheets(
   const outWb = new ExcelJS.Workbook();
   const total = sheets.length;
 
+  // Preload media (images) from template into output workbook so worksheet
+  // model copies that reference imageId 0 resolve correctly.
+  {
+    const mediaWb = new ExcelJS.Workbook();
+    await mediaWb.xlsx.load(templateBuffer.slice(0));
+    mediaWb.media.forEach((m) => outWb.media.push({ ...m }));
+  }
+
   for (let i = 0; i < total; i++) {
     const sheet = sheets[i];
     const sidNr = `${i + 1}/${total}`;
