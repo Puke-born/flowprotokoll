@@ -1,43 +1,113 @@
+
 ## Mål
 
-Byt ut nuvarande "från-noll"-export mot en export som utgår från din uppladdade mall `OVK-LFP_Mall.xlsx`. All formatering, ramar, rubriker, förifyllda etiketter och bildobjektet i mallen bevaras. Varje protokoll-blad i appen blir en full kopia av mallbladet med bara värdena ifyllda.
+Fem prestanda- och arkitekturförbättringar i `src/pages/Index.tsx` utan att bryta befintlig funktionalitet. Särskilt bevaras:
+- Piltangents- och Tab-navigering i anteckningsrutnätet (inkl. `atStart`/`atEnd`-logik och wraparound).
+- Canvas-baserad textmätning för dynamisk inputbredd.
+- Utskriftsstilarna (`@media print`) för `.notes-grid-wrapper`, `.notes-grid-row`, `.notes-grid-cell`.
+- Formelfältets läsning/skrivning mot både grid- och notesceller.
+- Overlay-beteendet (transparent input ovanpå synlig overlay när ofokuserad).
 
-## Så gör vi
+## Ändringar
 
-1. **Lägg in mallen i projektet**
-  - Kopiera den uppladdade filen till `public/OVK-LFP_Mall.xlsx` så den kan hämtas i runtime med `fetch('/OVK-LFP_Mall.xlsx')`. Filen följer med i bygget och funkar även offline via befintlig PWA-cache (lägger till den i precache-listan i `vite.config.ts` `workbox.globPatterns`/`includeAssets`).
-2. **Byt exportbibliotek till ExcelJS**
-  - `xlsx-js-style` klarar inte att bevara inbäddade bilder från en mall. Installera `exceljs` (`bun add exceljs`) och skriv om `src/lib/exportExcel.ts`.
-  - `xlsx` (för import) behålls oförändrat i `src/lib/importExcel.ts`.
-3. **Ny exportlogik (`exportExcel.ts`)**
-  - Hämta mallen som `ArrayBuffer`.
-  - Skapa ett tomt slutgiltigt `ExcelJS.Workbook`.
-  - För varje protokoll-blad i appen:
-  1. Ladda mallen i en temporär workbook (en gång per blad, så bild/ramar/styles följer med rent).
-  2. Ta mallbladet, döp om det till bladets namn + "LFP" (om det inte redan står) (samma sanering som idag: max 31 tecken, ta bort `< > : " / \\ | ? *`).
-  3. Skriv värden till exakt samma celler som idag använder — mallen har identisk layout:
-    - `C4` Kund, `C5` Anläggning, `C6` System, `C7` Utfört av
-    - `J4` Plan, `J5` Sid nr (`i+1/total`), `J6` Arb.nr, `J7` Datum
-    - Rader `A14:J49` → `rows[0..35]` (samma kolumnordning som idag)
-    - `A51:J55` → 5 anteckningsrader (`\t`-splittade som idag)
-    - `A50` lämnas orörd (mallen har redan "Mätmetod och övriga upplysningar.")
-  4. Kopiera det ifyllda mallbladet in i slutgiltiga workbook via `workbook.addWorksheet(...).model = tempSheet.model` så bild och alla styles följer med. (ExcelJS bevarar workbook-media när `model` sätts.)
-    plicera användarens manuellt satta cellfärger (`cellColorsPerSheet`) ovanpå mallens fyllning genom `cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb } }` för `A14:J49`-cellerna som har färg.
-    riv ut med `workbook.xlsx.writeBuffer()` och trigga nedladdning via `Blob` + `URL.createObjectURL`. Filnamnet behålls: `LFP [Anläggning] [Datum].xlsx`.
-4. **Rensning**
-  - Ta bort `xlsx-js-style` från `package.json` när det inte längre används (behåll om annat kod importerar; annars `bun remove xlsx-js-style`).
-  - Ingen ändring i UI, import, färgpalett, PWA-flöden eller andra filer.
+### 1. Ny komponent: `src/components/NotesGrid.tsx`
 
-## Tekniska detaljer
+Flytta ut hela anteckningsblocket (raderna ~967–1080 i `Index.tsx`).
 
-- `public/OVK-LFP_Mall.xlsx` serveras från roten. Fetchas med `fetch(import.meta.env.BASE_URL + 'OVK-LFP_Mall.xlsx')` för att fungera under valfri deploy-bas.
-- ExcelJS `worksheet.model = other.model` kopierar rader, celler, sammanslagningar, kolumnbredder, radhöjder och drawing-referenser. Bilden ligger på workbook-nivå (`workbook.media`) och binds via drawings — därför laddas mallen på nytt per blad så att varje bladkopia får sin egen media-referens korrekt.
-- ARGB för fill är 8-siffrig hex (`FF` + RRGGBB). Konvertering görs från de befintliga hex-värdena i `cellColorsPerSheet`.
-- Import-flödet (import från excel) rörs inte; det läser fortfarande värden med `xlsx`.
+Props:
+```ts
+interface NotesGridProps {
+  notes: string;                       // sheet.notes
+  onNotesCommit: (next: string) => void; // anropas vid onBlur / extern commit
+  activeCell: ActiveCell;              // för att veta om formelfältet driver cellen
+  onActiveCellChange: (c: ActiveCell) => void;
+  // Kontrollerad override när formelfältet skriver till en note-cell:
+  externalCellValue?: { r: number; c: number; value: string } | null;
+}
+```
+
+Intern state som flyttas in i komponenten:
+- `notesGridRef`, `notesRowWidth` + `ResizeObserver`.
+- `focusedNoteCell`.
+- `noteInputsRef` (5×10 matris).
+- `measureCacheRef` + `measureNoteText`.
+- Print-CSS `<style>`-blocket (flyttas in i komponenten så det följer med).
+
+Navigering (ArrowUp/Down/Left/Right/Enter/Tab + shift-Tab wraparound) flyttas oförändrad in i komponenten.
+
+### 2. Isolera state i NotesGrid för att slippa global omrendering per tangenttryck
+
+Nuvarande beteende: varje `onChange` triggar `setSheets` på hela `Index`. På äldre surfplattor märks lagg när `AirflowGrid` (36 rader) re-renderas.
+
+Ny modell inuti `NotesGrid`:
+- Håll en lokal `localGrid: string[][]` (5×10) som initieras från `notes` via en parser (samma `split("\n")` + `split("\t")` som idag).
+- `<input>` blir kontrollerad av `localGrid[r][c]`; `onChange` uppdaterar bara `localGrid` (via `useState` + `useCallback` som muterar en kopia).
+- `onBlur` (och wraparound-navigering som byter fokus till en annan cell) → serialisera `localGrid` tillbaka till samma `"\n"`/`"\t"`-format och anropa `onNotesCommit(serialized)`. Skicka bara commit när innehållet faktiskt ändrats.
+- Sync från förälder: `useEffect` som lyssnar på `notes`-propen och uppdaterar `localGrid` när propen ändras och **ingen cell är fokuserad** (undviker att skriva över användarens aktuella inmatning). Detta hanterar "Rensa blad", "byt aktivt blad", "Öppna projekt", och formelfält-skrivning till annan cell.
+- Formelfältet: när användaren skriver i formelfältet mot en note-cell, tar `Index` fortfarande sin data från `sheet.notes` för display. Vi låter `Index` skicka en `externalCellValue`-prop **endast** för att synka just den fokuserade cellen — enklare alternativ: låt formelfältets `onChange` fortfarande gå via `writeNoteCell` (samma som idag), och lägg till en effekt i `NotesGrid` som synkar `localGrid[activeCell.r][activeCell.c]` från `notes` när `activeCell` är en notes-cell OCH källan är formelfältet (dvs. cellen är inte fokuserad i själva rutnätet). I praktiken: om `focusedNoteCell` är null använder vi propen; annars behåller vi lokalt värde.
+
+Netto: skrivningar i rutnätet uppdaterar bara `NotesGrid` per tangent; `Index` uppdateras först vid blur/navigering.
+
+### 3. Konsolidera localStorage-effekter i `Index.tsx`
+
+Ersätt de tre separata `useEffect`-hookarna (raderna 231–252) med **en** debouncad effekt:
+
+```ts
+useEffect(() => {
+  const id = window.setTimeout(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
+    localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
+    const obj: Record<string, Record<string, Record<string, string>>> = {};
+    cellColorsMap.forEach((v, k) => { obj[k] = v; });
+    localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
+  }, 400);
+  return () => window.clearTimeout(id);
+}, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
+```
+
+En timer, en atomisk skrivning per debounce-fönster.
+
+### 4. Typsäkra File System Access API
+
+Lägg till modulnivå-deklaration överst i `Index.tsx` (eller i `src/vite-env.d.ts` om vi vill dela globalt — vi lägger den i `Index.tsx` för minimal påverkan):
+
+```ts
+declare global {
+  interface Window {
+    showSaveFilePicker?: (options?: {
+      suggestedName?: string;
+      types?: { description?: string; accept: Record<string, string[]> }[];
+    }) => Promise<FileSystemFileHandle>;
+  }
+}
+```
+
+Ersätt `(window as any).showSaveFilePicker(...)` med `window.showSaveFilePicker!(...)` (guardad av `'showSaveFilePicker' in window`-checken som redan finns).
+
+### 5. Höj mätcache-taket från 2000 → 5000
+
+I `measureNoteText` (nu i `NotesGrid.tsx`):
+```ts
+if (cache.size > 5000) cache.clear();
+```
+
+## Verifieringschecklista efter implementation
+
+- Skriv i en cell i anteckningsrutnätet: ingen `AirflowGrid`-rerender per tecken (React DevTools eller enkel `console.count` i AirflowGrid under test).
+- Pil upp/ned/vänster/höger + Enter + Tab + Shift+Tab: fokus hoppar korrekt inkl. wraparound.
+- ArrowLeft/Right respekterar `atStart`/`atEnd` (bara hoppar när caret är i kanten).
+- Overlay visar rätt text när cellen inte är fokuserad; input växer dynamiskt vid fokus.
+- Formelfält: markera en note-cell, skriv i formelfältet → cellen uppdateras.
+- Byt aktivt blad → notes-rutnätet visar nya bladets värden.
+- "Rensa" / "Öppna projekt" / "Nytt protokoll" → notes-rutnätet nollställs/uppdateras.
+- Export till Excel: A51–J55 innehåller samma tab/newline-struktur som tidigare (commit sker senast vid blur; export-knappen ligger utanför inputs så onBlur triggas först).
+- localStorage: kontrollera i DevTools att alla tre nycklar (`lfp-protocol-data`, `lfp-imported-cells`, `lfp-cell-colors`) uppdateras ~400 ms efter en ändring.
+- Utskriftsförhandsvisning: radhöjd 21px, bredd 640px behålls.
+- TypeScript-bygget: inga `any`-varningar för `showSaveFilePicker`.
 
 ## Filer som ändras
 
-- Ny: `public/OVK-LFP_Mall.xlsx` (kopia av uppladdad mall)
-- `src/lib/exportExcel.ts` — omskrivning enligt ovan
-- `vite.config.ts` — lägga till mallen i PWA precache
-- `package.json` — `bun add exceljs` (ev. `bun remove xlsx-js-style`)
+- **Ny:** `src/components/NotesGrid.tsx`
+- **Ändrad:** `src/pages/Index.tsx` (importera NotesGrid, ta bort inline-anteckningsblock + mätlogik + fokusstate + print-style, konsolidera localStorage-effekter, deklarera `Window.showSaveFilePicker`, ta bort `as any`).
+
+Inga ändringar i `AirflowGrid.tsx`, `exportExcel.ts`, `importExcel.ts` eller `ProtocolHeader.tsx`.
