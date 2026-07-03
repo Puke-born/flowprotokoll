@@ -733,7 +733,7 @@ const Index = () => {
           </button>
           {/* Hidden file inputs */}
           <input ref={projectInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadProject} />
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileSelect} />
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.xlsm" className="hidden" onChange={handleFileSelect} />
 
           {/* Desktop buttons */}
           <div className="hidden md:flex items-center gap-2">
