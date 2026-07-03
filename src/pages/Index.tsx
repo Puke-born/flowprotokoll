@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
+import NotesGrid from "@/components/NotesGrid";
 import { exportAllSheets } from "@/lib/exportExcel";
 import { getSheetNames, importSheets } from "@/lib/importExcel";
 import { toast } from "sonner";
@@ -34,6 +35,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+declare global {
+  interface Window {
+    showSaveFilePicker?: (options?: {
+      suggestedName?: string;
+      types?: { description?: string; accept: Record<string, string[]> }[];
+    }) => Promise<FileSystemFileHandle>;
+  }
+}
 
 const NUM_ROWS = 36; // rows 14–49
 
@@ -171,39 +181,6 @@ const Index = () => {
   }, [formulaBarOpen]);
 
   // Anteckningsrutnät: fokuserad cell + mätt rad-bredd för dynamisk inputbredd
-  const [focusedNoteCell, setFocusedNoteCell] = useState<{ r: number; c: number } | null>(null);
-  const notesGridRef = useRef<HTMLDivElement>(null);
-  const [notesRowWidth, setNotesRowWidth] = useState(0);
-  const noteInputsRef = useRef<(HTMLInputElement | null)[][]>(
-    Array.from({ length: 5 }, () => Array(10).fill(null)),
-  );
-  useEffect(() => {
-    const el = notesGridRef.current;
-    if (!el) return;
-    const update = () => setNotesRowWidth(el.clientWidth);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const measureCacheRef = useRef<Map<string, number>>(new Map());
-  const measureNoteText = useCallback((text: string) => {
-    if (typeof document === "undefined") return 0;
-    const cache = measureCacheRef.current;
-    const cached = cache.get(text);
-    if (cached !== undefined) return cached;
-    const holder = measureNoteText as unknown as { _c?: HTMLCanvasElement };
-    const canvas = holder._c ?? (holder._c = document.createElement("canvas"));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return 0;
-    ctx.font = '13px Arial, Helvetica, sans-serif';
-    const w = Math.ceil(ctx.measureText(text).width);
-    // Bound cache size so it can't grow unbounded during long sessions.
-    if (cache.size > 2000) cache.clear();
-    cache.set(text, w);
-    return w;
-  }, []);
-
   const confirmConfig = {
     new: {
       title: "Skapa nytt protokoll?",
@@ -231,25 +208,13 @@ const Index = () => {
   useEffect(() => {
     const id = window.setTimeout(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
-    }, 400);
-    return () => window.clearTimeout(id);
-  }, [sheets, activeSheet]);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
       localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
-    }, 400);
-    return () => window.clearTimeout(id);
-  }, [importedCellsMap]);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
       const obj: Record<string, Record<string, Record<string, string>>> = {};
       cellColorsMap.forEach((v, k) => { obj[k] = v; });
       localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
     }, 400);
     return () => window.clearTimeout(id);
-  }, [cellColorsMap]);
+  }, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
 
   // Update-checker: check every 60 min + on window focus.
   useEffect(() => {
@@ -320,14 +285,18 @@ const Index = () => {
     [activeSheet]
   );
 
-  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
+  const handleNotesCommit = useCallback((value: string) => {
     setSheets((prev) => {
+      if (prev[activeSheet].notes === value) return prev;
       const next = [...prev];
       next[activeSheet] = { ...next[activeSheet], notes: value };
       return next;
     });
   }, [activeSheet]);
+
+  const handleNotesCellSelect = useCallback((r: number, c: number) => {
+    setActiveCell({ source: "notes", r, c });
+  }, []);
 
   const writeNoteCell = useCallback((r: number, c: number, v: string) => {
     setSheets((prev) => {
@@ -473,7 +442,7 @@ const Index = () => {
         if (!fileHandleRef.current) {
           const anlaggning = sheets[0]?.anlaggning?.trim();
           const fileName = anlaggning ? `${anlaggning}.lfp.json` : "projekt.lfp.json";
-          fileHandleRef.current = await (window as any).showSaveFilePicker({
+          fileHandleRef.current = await window.showSaveFilePicker!({
             suggestedName: fileName,
             types: [{ description: 'LFP Projekt', accept: { 'application/json': ['.json'] } }],
           });
