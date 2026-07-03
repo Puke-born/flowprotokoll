@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
+import NotesGrid from "@/components/NotesGrid";
 import { exportAllSheets } from "@/lib/exportExcel";
 import { getSheetNames, importSheets } from "@/lib/importExcel";
 import { toast } from "sonner";
@@ -34,6 +35,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+declare global {
+  interface Window {
+    showSaveFilePicker?: (options?: {
+      suggestedName?: string;
+      types?: { description?: string; accept: Record<string, string[]> }[];
+    }) => Promise<FileSystemFileHandle>;
+  }
+}
 
 const NUM_ROWS = 36; // rows 14–49
 
@@ -171,39 +181,6 @@ const Index = () => {
   }, [formulaBarOpen]);
 
   // Anteckningsrutnät: fokuserad cell + mätt rad-bredd för dynamisk inputbredd
-  const [focusedNoteCell, setFocusedNoteCell] = useState<{ r: number; c: number } | null>(null);
-  const notesGridRef = useRef<HTMLDivElement>(null);
-  const [notesRowWidth, setNotesRowWidth] = useState(0);
-  const noteInputsRef = useRef<(HTMLInputElement | null)[][]>(
-    Array.from({ length: 5 }, () => Array(10).fill(null)),
-  );
-  useEffect(() => {
-    const el = notesGridRef.current;
-    if (!el) return;
-    const update = () => setNotesRowWidth(el.clientWidth);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const measureCacheRef = useRef<Map<string, number>>(new Map());
-  const measureNoteText = useCallback((text: string) => {
-    if (typeof document === "undefined") return 0;
-    const cache = measureCacheRef.current;
-    const cached = cache.get(text);
-    if (cached !== undefined) return cached;
-    const holder = measureNoteText as unknown as { _c?: HTMLCanvasElement };
-    const canvas = holder._c ?? (holder._c = document.createElement("canvas"));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return 0;
-    ctx.font = '13px Arial, Helvetica, sans-serif';
-    const w = Math.ceil(ctx.measureText(text).width);
-    // Bound cache size so it can't grow unbounded during long sessions.
-    if (cache.size > 2000) cache.clear();
-    cache.set(text, w);
-    return w;
-  }, []);
-
   const confirmConfig = {
     new: {
       title: "Skapa nytt protokoll?",
@@ -231,25 +208,13 @@ const Index = () => {
   useEffect(() => {
     const id = window.setTimeout(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
-    }, 400);
-    return () => window.clearTimeout(id);
-  }, [sheets, activeSheet]);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
       localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
-    }, 400);
-    return () => window.clearTimeout(id);
-  }, [importedCellsMap]);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
       const obj: Record<string, Record<string, Record<string, string>>> = {};
       cellColorsMap.forEach((v, k) => { obj[k] = v; });
       localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
     }, 400);
     return () => window.clearTimeout(id);
-  }, [cellColorsMap]);
+  }, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
 
   // Update-checker: check every 60 min + on window focus.
   useEffect(() => {
@@ -320,14 +285,18 @@ const Index = () => {
     [activeSheet]
   );
 
-  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
+  const handleNotesCommit = useCallback((value: string) => {
     setSheets((prev) => {
+      if (prev[activeSheet].notes === value) return prev;
       const next = [...prev];
       next[activeSheet] = { ...next[activeSheet], notes: value };
       return next;
     });
   }, [activeSheet]);
+
+  const handleNotesCellSelect = useCallback((r: number, c: number) => {
+    setActiveCell({ source: "notes", r, c });
+  }, []);
 
   const writeNoteCell = useCallback((r: number, c: number, v: string) => {
     setSheets((prev) => {
@@ -473,7 +442,7 @@ const Index = () => {
         if (!fileHandleRef.current) {
           const anlaggning = sheets[0]?.anlaggning?.trim();
           const fileName = anlaggning ? `${anlaggning}.lfp.json` : "projekt.lfp.json";
-          fileHandleRef.current = await (window as any).showSaveFilePicker({
+          fileHandleRef.current = await window.showSaveFilePicker!({
             suggestedName: fileName,
             types: [{ description: 'LFP Projekt', accept: { 'application/json': ['.json'] } }],
           });
@@ -964,120 +933,12 @@ const Index = () => {
           onCellSelect={handleCellSelect}
           onRowReorder={handleRowReorder}
         />
-        <style>{`
-          @media print {
-            .notes-grid-wrapper { width: 640px; }
-            .notes-grid-row { height: 21px !important; }
-            .notes-grid-cell, .notes-grid-cell input, .notes-grid-cell .notes-overlay { height: 21px !important; }
-          }
-        `}</style>
-        <div className="rounded-lg border border-grid-border shadow-sm overflow-visible notes-grid-wrapper">
-          <div className="bg-grid-header px-3 py-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-grid-header-foreground">Mätmetod och övriga upplysningar</span>
-          </div>
-          <div className="bg-grid-cell" ref={notesGridRef}>
-            {Array.from({ length: 5 }).map((_, rowIdx) => {
-              const lines = (sheet.notes || "").split("\n");
-              const cells = (lines[rowIdx] || "").split("\t");
-              return (
-                <div
-                  key={rowIdx}
-                  className="notes-grid-row grid grid-cols-10 border-b border-black last:border-b-0 relative overflow-hidden"
-                >
-                  {Array.from({ length: 10 }).map((_, colIdx) => {
-                    const isFocused =
-                      focusedNoteCell?.r === rowIdx && focusedNoteCell?.c === colIdx;
-                    const cellWidth = notesRowWidth / 10;
-                    const textWidth = measureNoteText(cells[colIdx] || "") + 28;
-                    const remainingWidth = notesRowWidth - colIdx * cellWidth;
-                    const focusedWidth = Math.min(Math.max(textWidth, cellWidth), remainingWidth);
-                    const nextHasText = !!(cells[colIdx + 1] && cells[colIdx + 1].trim());
-                    return (
-                    <div
-                      key={colIdx}
-                      className="notes-grid-cell relative h-[26px] focus-within:z-50 overflow-visible"
-                      style={{ zIndex: 10 - colIdx }}
-                    >
-                      {!isFocused && (
-                        <div
-                          aria-hidden
-                          className="notes-overlay pointer-events-none absolute top-0 left-0 h-[26px] px-1 flex items-center whitespace-nowrap text-foreground"
-                          style={{
-                            width: "max-content",
-                            maxWidth: nextHasText ? "100%" : undefined,
-                            overflow: nextHasText ? "hidden" : "visible",
-                            fontFamily: 'Arial, Helvetica, sans-serif',
-                            fontSize: '13px',
-                            lineHeight: 1.1,
-                          }}
-                        >
-                          {cells[colIdx] || ""}
-                        </div>
-                      )}
-                      <input
-                        type="text"
-                        ref={(el) => {
-                          noteInputsRef.current[rowIdx][colIdx] = el;
-                        }}
-                        value={cells[colIdx] || ""}
-                        onChange={(e) => {
-                          const allLines = (sheet.notes || "").split("\n");
-                          while (allLines.length < 5) allLines.push("");
-                          const rowCells = (allLines[rowIdx] || "").split("\t");
-                          while (rowCells.length < 10) rowCells.push("");
-                          rowCells[colIdx] = e.target.value.replace(/\t|\n/g, " ");
-                          allLines[rowIdx] = rowCells.slice(0, 10).join("\t").replace(/\t+$/, "");
-                          handleNotesChange({
-                            target: { value: allLines.slice(0, 5).join("\n") },
-                          } as React.ChangeEvent<HTMLTextAreaElement>);
-                        }}
-                        onFocus={() => {
-                          setFocusedNoteCell({ r: rowIdx, c: colIdx });
-                          setActiveCell({ source: "notes", r: rowIdx, c: colIdx });
-                        }}
-                        onBlur={() => setFocusedNoteCell((cur) =>
-                          cur?.r === rowIdx && cur?.c === colIdx ? null : cur,
-                        )}
-                        onKeyDown={(e) => {
-                          const input = e.currentTarget;
-                          const atStart = input.selectionStart === 0 && input.selectionEnd === 0;
-                          const atEnd =
-                            input.selectionStart === input.value.length &&
-                            input.selectionEnd === input.value.length;
-                          let nr = rowIdx;
-                          let nc = colIdx;
-                          if (e.key === "ArrowUp") nr = rowIdx - 1;
-                          else if (e.key === "ArrowDown" || e.key === "Enter") nr = rowIdx + 1;
-                          else if (e.key === "ArrowLeft" && atStart) nc = colIdx - 1;
-                          else if (e.key === "ArrowRight" && atEnd) nc = colIdx + 1;
-                          else if (e.key === "Tab") {
-                            nc = colIdx + (e.shiftKey ? -1 : 1);
-                            if (nc < 0) { nc = 9; nr = rowIdx - 1; }
-                            else if (nc > 9) { nc = 0; nr = rowIdx + 1; }
-                          } else return;
-                          if (nr < 0 || nr > 4 || nc < 0 || nc > 9) return;
-                          const next = noteInputsRef.current[nr]?.[nc];
-                          if (next) {
-                            e.preventDefault();
-                            next.focus();
-                            next.select();
-                          }
-                        }}
-                        style={
-                          isFocused
-                            ? { width: `${focusedWidth}px`, fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '13px', lineHeight: 1.1 }
-                            : { width: "100%", fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '13px', lineHeight: 1.1 }
-                        }
-                        className="absolute top-0 left-0 h-[26px] px-1 bg-transparent text-transparent caret-foreground focus:text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring rounded-none"
-                      />
-                    </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <NotesGrid
+          key={activeSheet}
+          notes={sheet.notes}
+          onNotesCommit={handleNotesCommit}
+          onCellSelect={handleNotesCellSelect}
+        />
       </main>
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent>
