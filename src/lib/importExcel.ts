@@ -19,7 +19,7 @@ function readCell(v: ExcelJS.CellValue | null | undefined): string {
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   if (typeof v === "object") {
-    const obj = v as Record<string, unknown>;
+    const obj = v as unknown as Record<string, unknown>;
     if ("result" in obj && obj.result != null) {
       const r = obj.result;
       if (typeof r === "object" && r !== null && "error" in (r as Record<string, unknown>)) return "";
