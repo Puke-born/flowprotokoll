@@ -1,113 +1,90 @@
-
 ## Mål
 
-Fem prestanda- och arkitekturförbättringar i `src/pages/Index.tsx` utan att bryta befintlig funktionalitet. Särskilt bevaras:
-- Piltangents- och Tab-navigering i anteckningsrutnätet (inkl. `atStart`/`atEnd`-logik och wraparound).
-- Canvas-baserad textmätning för dynamisk inputbredd.
-- Utskriftsstilarna (`@media print`) för `.notes-grid-wrapper`, `.notes-grid-row`, `.notes-grid-cell`.
-- Formelfältets läsning/skrivning mot både grid- och notesceller.
-- Overlay-beteendet (transparent input ovanpå synlig overlay när ofokuserad).
+Två prestanda-/storleksförbättringar, utan att bryta piltangentnavigering, Enter/Tab, formelfältets skrivning eller EVAL-formelutvärderingen på `tilluft_uppmat`/`franluft_uppmat`.
 
-## Ändringar
+---
 
-### 1. Ny komponent: `src/components/NotesGrid.tsx`
+### 1. Lokal cell-state i `AirflowGrid.tsx`
 
-Flytta ut hela anteckningsblocket (raderna ~967–1080 i `Index.tsx`).
+**Problem:** varje tangenttryck anropar `onCellChange` → `setSheets` i `Index.tsx` → hela rutnätet (36 rader × 10 kolumner) renderas om.
 
-Props:
+**Ny modell:**
+- Skapa en intern memoiserad `GridCell`-komponent i `AirflowGrid.tsx` (en per input).
+- `GridCell` har **eget lokalt state** `localValue`, initierat från prop `value`.
+- `onChange` uppdaterar bara `localValue` (ingen förälder-render).
+- `onBlur` committar uppåt via `onCellChange`:
+  - Om kolumnen är i `EVAL_COLUMNS`: kör `tryEvalMath(localValue)`; om resultat ≠ null, sätt `localValue = result` och committa resultatet. Annars committa råvärdet.
+  - Committa endast om `localValue !== value` (undvik onödiga setState).
+- Piltangenter/Enter/Tab: nuvarande `handleKeyDown` flyttar fokus till annan cell → `onBlur` triggas automatiskt av webbläsaren på cellen vi lämnar → commit sker innan mottagarcellen får `value`-prop, så flödet fungerar oförändrat.
+- **Extern sync (formelfältet):** när `Index` skriver via formelfältet ändras `value`-propen. `GridCell` har en `useEffect` som synkar `localValue` från `value`-propen **när cellen inte är fokuserad**. En `isFocusedRef` (eller `document.activeElement`-check) förhindrar att användarens pågående inmatning skrivs över.
+- Memoisera `GridCell` med `React.memo` så att en cells re-render inte drar med resten.
+- Behåll alla nuvarande props (data-row/data-col, `onCellSelect`, färger, importerad-highlight, styling, autofokusflöde via `gridRef.querySelector`).
+
+**Bevaras:**
+- Piltangentnavigering (samma `handleKeyDown` på cellnivå eller lyft till förälder-nivå med samma logik).
+- Drag-and-drop-radordning (oförändrad, ligger på `<td>`).
+- Import-highlight (gul bakgrund) och användarvalda cellfärger.
+- Formelfältets tvåvägsbindning.
+
+**Kvittering av EVAL:** logiken flyttas från nuvarande `onBlur`-block i `AirflowGrid` in i `GridCell.onBlur` — samma `tryEvalMath`-anrop, samma två målkolumner.
+
+---
+
+### 2. Byt `xlsx` mot `exceljs` i `src/lib/importExcel.ts`
+
+**Ta bort:** `import * as XLSX from "xlsx"`.
+**Använd:** `import ExcelJS from "exceljs"` (redan i dependencies via export).
+
+**Nya signaturer (async):**
 ```ts
-interface NotesGridProps {
-  notes: string;                       // sheet.notes
-  onNotesCommit: (next: string) => void; // anropas vid onBlur / extern commit
-  activeCell: ActiveCell;              // för att veta om formelfältet driver cellen
-  onActiveCellChange: (c: ActiveCell) => void;
-  // Kontrollerad override när formelfältet skriver till en note-cell:
-  externalCellValue?: { r: number; c: number; value: string } | null;
-}
+export async function getSheetNames(file: ArrayBuffer): Promise<string[]>
+export async function importSheets(file: ArrayBuffer, sheetNames: string[]): Promise<ImportedSheet[]>
 ```
 
-Intern state som flyttas in i komponenten:
-- `notesGridRef`, `notesRowWidth` + `ResizeObserver`.
-- `focusedNoteCell`.
-- `noteInputsRef` (5×10 matris).
-- `measureCacheRef` + `measureNoteText`.
-- Print-CSS `<style>`-blocket (flyttas in i komponenten så det följer med).
-
-Navigering (ArrowUp/Down/Left/Right/Enter/Tab + shift-Tab wraparound) flyttas oförändrad in i komponenten.
-
-### 2. Isolera state i NotesGrid för att slippa global omrendering per tangenttryck
-
-Nuvarande beteende: varje `onChange` triggar `setSheets` på hela `Index`. På äldre surfplattor märks lagg när `AirflowGrid` (36 rader) re-renderas.
-
-Ny modell inuti `NotesGrid`:
-- Håll en lokal `localGrid: string[][]` (5×10) som initieras från `notes` via en parser (samma `split("\n")` + `split("\t")` som idag).
-- `<input>` blir kontrollerad av `localGrid[r][c]`; `onChange` uppdaterar bara `localGrid` (via `useState` + `useCallback` som muterar en kopia).
-- `onBlur` (och wraparound-navigering som byter fokus till en annan cell) → serialisera `localGrid` tillbaka till samma `"\n"`/`"\t"`-format och anropa `onNotesCommit(serialized)`. Skicka bara commit när innehållet faktiskt ändrats.
-- Sync från förälder: `useEffect` som lyssnar på `notes`-propen och uppdaterar `localGrid` när propen ändras och **ingen cell är fokuserad** (undviker att skriva över användarens aktuella inmatning). Detta hanterar "Rensa blad", "byt aktivt blad", "Öppna projekt", och formelfält-skrivning till annan cell.
-- Formelfältet: när användaren skriver i formelfältet mot en note-cell, tar `Index` fortfarande sin data från `sheet.notes` för display. Vi låter `Index` skicka en `externalCellValue`-prop **endast** för att synka just den fokuserade cellen — enklare alternativ: låt formelfältets `onChange` fortfarande gå via `writeNoteCell` (samma som idag), och lägg till en effekt i `NotesGrid` som synkar `localGrid[activeCell.r][activeCell.c]` från `notes` när `activeCell` är en notes-cell OCH källan är formelfältet (dvs. cellen är inte fokuserad i själva rutnätet). I praktiken: om `focusedNoteCell` är null använder vi propen; annars behåller vi lokalt värde.
-
-Netto: skrivningar i rutnätet uppdaterar bara `NotesGrid` per tangent; `Index` uppdateras först vid blur/navigering.
-
-### 3. Konsolidera localStorage-effekter i `Index.tsx`
-
-Ersätt de tre separata `useEffect`-hookarna (raderna 231–252) med **en** debouncad effekt:
-
-```ts
-useEffect(() => {
-  const id = window.setTimeout(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sheets, activeSheet }));
-    localStorage.setItem(IMPORTED_CELLS_KEY, serializeImportedCells(importedCellsMap));
-    const obj: Record<string, Record<string, Record<string, string>>> = {};
-    cellColorsMap.forEach((v, k) => { obj[k] = v; });
-    localStorage.setItem(CELL_COLORS_KEY, JSON.stringify(obj));
-  }, 400);
-  return () => window.clearTimeout(id);
-}, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
-```
-
-En timer, en atomisk skrivning per debounce-fönster.
-
-### 4. Typsäkra File System Access API
-
-Lägg till modulnivå-deklaration överst i `Index.tsx` (eller i `src/vite-env.d.ts` om vi vill dela globalt — vi lägger den i `Index.tsx` för minimal påverkan):
-
-```ts
-declare global {
-  interface Window {
-    showSaveFilePicker?: (options?: {
-      suggestedName?: string;
-      types?: { description?: string; accept: Record<string, string[]> }[];
-    }) => Promise<FileSystemFileHandle>;
+**Implementation:**
+- `const wb = new ExcelJS.Workbook(); await wb.xlsx.load(file);`
+- `getSheetNames`: `wb.worksheets.map(ws => ws.name)`.
+- `importSheets`: för varje namn, `wb.getWorksheet(name)`; om saknas → tom sheet med 36 tomma rader.
+- **Rader 14–49** (1-indexerat) × **kolumner 1–10**: `ws.getRow(r).getCell(c).value`.
+- **Anteckningar rader 51–55** × kolumner 1–10 → samma tab/newline-serialisering som idag (`join("\t")` per rad, trimma trailing tabs, `join("\n")`, trimma trailing tomma rader).
+- **Säker värdesutdragning** (hanterar formler, rich text, hyperlinks, null):
+  ```ts
+  function readCell(v: ExcelJS.CellValue): string {
+    if (v == null) return "";
+    if (typeof v === "object") {
+      if ("result" in v && v.result != null) return String(v.result);       // formula
+      if ("richText" in v) return v.richText.map(t => t.text).join("");     // rich text
+      if ("text" in v) return String((v as { text: string }).text);         // hyperlink
+      if (v instanceof Date) return v.toISOString().slice(0, 10);
+      return "";
+    }
+    return String(v);
   }
-}
-```
+  ```
+- Kolumnmappning: samma `COL_KEYS`-array. Skriv bara till `row[key]` om `readCell` gav icke-tom sträng (bibehåller nuvarande "sparsam" struktur som `importedCellsMap` bygger på).
 
-Ersätt `(window as any).showSaveFilePicker(...)` med `window.showSaveFilePicker!(...)` (guardad av `'showSaveFilePicker' in window`-checken som redan finns).
+**Uppdatera anroparen i `Index.tsx`:**
+- `handleFileSelect` (rad 375–389): `reader.onload` → gör `async`, `const names = await getSheetNames(buffer);`. Wrappa i try/catch → `toast.error("Kunde inte läsa filen")`.
+- `handleImportConfirm` (rad 391–418): gör `async`, `const imported = await importSheets(...)`. Wrappa i try/catch → `toast.error(...)`.
 
-### 5. Höj mätcache-taket från 2000 → 5000
+**Bundle:** `xlsx` blir oanvänd — låt `package.json` vara orörd i denna PR (borttag hanteras separat om användaren vill), eller ta bort direktimporten så att tree-shaking utesluter den. Vi tar bort själva importen; paketet kan avinstalleras senare.
 
-I `measureNoteText` (nu i `NotesGrid.tsx`):
-```ts
-if (cache.size > 5000) cache.clear();
-```
+---
 
-## Verifieringschecklista efter implementation
+## Verifieringschecklista
 
-- Skriv i en cell i anteckningsrutnätet: ingen `AirflowGrid`-rerender per tecken (React DevTools eller enkel `console.count` i AirflowGrid under test).
-- Pil upp/ned/vänster/höger + Enter + Tab + Shift+Tab: fokus hoppar korrekt inkl. wraparound.
-- ArrowLeft/Right respekterar `atStart`/`atEnd` (bara hoppar när caret är i kanten).
-- Overlay visar rätt text när cellen inte är fokuserad; input växer dynamiskt vid fokus.
-- Formelfält: markera en note-cell, skriv i formelfältet → cellen uppdateras.
-- Byt aktivt blad → notes-rutnätet visar nya bladets värden.
-- "Rensa" / "Öppna projekt" / "Nytt protokoll" → notes-rutnätet nollställs/uppdateras.
-- Export till Excel: A51–J55 innehåller samma tab/newline-struktur som tidigare (commit sker senast vid blur; export-knappen ligger utanför inputs så onBlur triggas först).
-- localStorage: kontrollera i DevTools att alla tre nycklar (`lfp-protocol-data`, `lfp-imported-cells`, `lfp-cell-colors`) uppdateras ~400 ms efter en ändring.
-- Utskriftsförhandsvisning: radhöjd 21px, bredd 640px behålls.
-- TypeScript-bygget: inga `any`-varningar för `showSaveFilePicker`.
+- Skriv snabbt i en cell: inga renders av `Index` per tangent (kontrollera med `console.count("render")` tillfälligt).
+- Pil upp/ner/Enter i huvudrutnätet flyttar fokus, och värdet finns kvar i cellen man lämnade (commit på blur).
+- Skriv `2+3` i "Uppmätt (tilluft)" → Tab → cellen visar `5` och `sheet.rows` uppdateras.
+- Formelfält: markera en cell, skriv i formelfältet → cellvärdet uppdateras live (extern sync fungerar när cellen inte är fokuserad).
+- Import: välj `.xlsx` och `.xlsm` → dialog visar bladnamn → importera → rader 14–49 fyllda korrekt, anteckningar 51–55 med tab-separatorer bevarade.
+- Cell med Excel-formel importeras med `.result`-värdet (inte `[object Object]`).
+- Drag-and-drop av rader fungerar.
+- Import-highlight (gul) och användarvalda cellfärger renderas.
+- Export → återimport round-trip ger samma data.
 
-## Filer som ändras
+## Filer
 
-- **Ny:** `src/components/NotesGrid.tsx`
-- **Ändrad:** `src/pages/Index.tsx` (importera NotesGrid, ta bort inline-anteckningsblock + mätlogik + fokusstate + print-style, konsolidera localStorage-effekter, deklarera `Window.showSaveFilePicker`, ta bort `as any`).
-
-Inga ändringar i `AirflowGrid.tsx`, `exportExcel.ts`, `importExcel.ts` eller `ProtocolHeader.tsx`.
+- **Ändras:** `src/components/AirflowGrid.tsx` (ny intern `GridCell`, lokal state, memo).
+- **Ändras:** `src/lib/importExcel.ts` (byt bibliotek, async API, säker värdesutdragning).
+- **Ändras:** `src/pages/Index.tsx` (`await` på import-anrop, try/catch runt dem).
