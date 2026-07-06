@@ -117,13 +117,16 @@ export async function exportAllSheets(
     await tmpWb.xlsx.load(templateBuffer.slice(0));
     const tmpWs = tmpWb.worksheets[0];
 
-    fillSheet(tmpWs, sheet, sidNr, cellColorsPerSheet?.[i]);
-
     const name = sanitizeSheetName(
       sheet.name || (total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`)
     );
+
+    // 1. Create sheet and copy model first
     const newWs = outWb.addWorksheet(name);
     newWs.model = { ...tmpWs.model, name };
+
+    // 2. Fill data and colors directly on the new sheet so styles register safely in outWb
+    fillSheet(newWs, sheet, sidNr, cellColorsPerSheet?.[i]);
   }
 
   const anlaggning = sheets[0]?.anlaggning?.replace(/[/\\:*?"<>|]/g, "").trim() || "export";
