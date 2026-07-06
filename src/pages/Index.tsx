@@ -376,21 +376,33 @@ const Index = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const buffer = ev.target?.result as ArrayBuffer;
-      const names = getSheetNames(buffer);
-      setImportFileBuffer(buffer);
-      setAvailableSheetNames(names);
-      setSelectedSheetNames(names); // select all by default
-      setImportDialogOpen(true);
+    reader.onload = async (ev) => {
+      try {
+        const buffer = ev.target?.result as ArrayBuffer;
+        const names = await getSheetNames(buffer);
+        setImportFileBuffer(buffer);
+        setAvailableSheetNames(names);
+        setSelectedSheetNames(names); // select all by default
+        setImportDialogOpen(true);
+      } catch (err) {
+        console.error(err);
+        toast.error("Kunde inte läsa filen");
+      }
     };
     reader.readAsArrayBuffer(file);
     e.target.value = ""; // reset so same file can be picked again
   }, []);
 
-  const handleImportConfirm = useCallback(() => {
+  const handleImportConfirm = useCallback(async () => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
-    const imported = importSheets(importFileBuffer, selectedSheetNames);
+    let imported: Awaited<ReturnType<typeof importSheets>>;
+    try {
+      imported = await importSheets(importFileBuffer, selectedSheetNames);
+    } catch (err) {
+      console.error(err);
+      toast.error("Kunde inte importera filen");
+      return;
+    }
     const newSheets: Sheet[] = imported.map((s) => ({
       ...createEmptySheet(s.name),
       rows: s.rows,
