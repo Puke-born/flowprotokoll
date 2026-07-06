@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 const EVAL_COLUMNS = new Set(["tilluft_uppmat", "franluft_uppmat"]);
 
@@ -41,6 +41,64 @@ interface AirflowGridProps {
   onCellSelect?: (row: number, colKey: string) => void;
   onRowReorder?: (fromIndex: number, toIndex: number) => void;
 }
+
+interface GridCellProps {
+  rowIdx: number;
+  colIdx: number;
+  colKey: string;
+  value: string;
+  center: boolean;
+  pad: boolean;
+  extraBorder: boolean;
+  highlightImported: boolean;
+  bgColor?: string;
+  onCommit: (rowIdx: number, colKey: string, value: string) => void;
+  onSelect?: (rowIdx: number, colKey: string) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, rowIdx: number, colIdx: number) => void;
+}
+
+const GridCell = memo(function GridCell({
+  rowIdx, colIdx, colKey, value, center, pad, highlightImported, bgColor,
+  onCommit, onSelect, onKeyDown,
+}: GridCellProps) {
+  const [local, setLocal] = useState(value);
+  const focusedRef = useRef(false);
+
+  // Sync from parent when not focused (formula bar, sheet switch, import, etc.)
+  useEffect(() => {
+    if (!focusedRef.current) setLocal(value);
+  }, [value]);
+
+  const commit = useCallback((raw: string) => {
+    let next = raw;
+    if (EVAL_COLUMNS.has(colKey)) {
+      const evaluated = tryEvalMath(raw);
+      if (evaluated !== null) next = evaluated;
+    }
+    if (next !== raw) setLocal(next);
+    if (next !== value) onCommit(rowIdx, colKey, next);
+  }, [colKey, value, onCommit, rowIdx]);
+
+  return (
+    <input
+      data-row={rowIdx}
+      data-col={colIdx}
+      type="text"
+      inputMode="text"
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onKeyDown={(e) => onKeyDown(e, rowIdx, colIdx)}
+      onFocus={() => { focusedRef.current = true; onSelect?.(rowIdx, colKey); }}
+      onBlur={() => { focusedRef.current = false; commit(local); }}
+      style={bgColor ? { backgroundColor: bgColor } : undefined}
+      className={`w-full h-10 ${pad ? "px-2" : "px-0.5"} text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none ${
+        center ? "text-center" : ""
+      } ${
+        !bgColor && highlightImported ? "bg-yellow-100 dark:bg-yellow-900/30" : ""
+      }`}
+    />
+  );
+});
 
 const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCellSelect, onRowReorder }: AirflowGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -166,30 +224,19 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
                     colIdx === 5 ? "border-r-2 border-grid-border/50" : ""
                   }`}
                 >
-                  <input
-                    data-row={rowIdx}
-                    data-col={colIdx}
-                    type="text"
-                    inputMode="text"
+                  <GridCell
+                    rowIdx={rowIdx}
+                    colIdx={colIdx}
+                    colKey={col.key}
                     value={row[col.key] || ""}
-                    onChange={(e) => onCellChange(rowIdx, col.key, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, rowIdx, colIdx)}
-                    onFocus={() => onCellSelect?.(rowIdx, col.key)}
-                    onBlur={() => {
-                      if (EVAL_COLUMNS.has(col.key)) {
-                        const val = row[col.key] || "";
-                        const result = tryEvalMath(val);
-                        if (result !== null) {
-                          onCellChange(rowIdx, col.key, result);
-                        }
-                      }
-                    }}
-                    style={cellColors?.[rowIdx]?.[col.key] ? { backgroundColor: cellColors[rowIdx][col.key] } : undefined}
-                    className={`w-full h-10 ${col.pad ? "px-2" : "px-0.5"} text-sm font-mono bg-transparent text-foreground focus:outline-none focus:bg-primary/10 focus:ring-1 focus:ring-ring rounded-none ${
-                      col.center ? "text-center" : ""
-                    } ${
-                      !cellColors?.[rowIdx]?.[col.key] && importedCells?.[rowIdx]?.has(col.key) ? "bg-yellow-100 dark:bg-yellow-900/30" : ""
-                    }`}
+                    center={col.center}
+                    pad={col.pad}
+                    extraBorder={colIdx === 5}
+                    highlightImported={!!importedCells?.[rowIdx]?.has(col.key)}
+                    bgColor={cellColors?.[rowIdx]?.[col.key]}
+                    onCommit={onCellChange}
+                    onSelect={onCellSelect}
+                    onKeyDown={handleKeyDown}
                   />
                 </td>
               ))}
