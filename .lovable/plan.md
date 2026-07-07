@@ -1,26 +1,29 @@
-## Plan
+## Plan: Byt namn till "FLOVVK - LFP" och uppdatera logotyp/ikoner
 
-1. **Ta bort modellkopiering mellan olika arbetsböcker**
-   - Sluta skapa `outWb = new ExcelJS.Workbook()` och sedan kopiera `tmpWs.model` från en annan workbook.
-   - Det är fortfarande roten till felet: även om `fillSheet` körs senare kan `newWs.model = { ...tmpWs.model, name }` föra över styleId/style-objekt på ett sätt som ExcelJS tolkar fel.
+### 1. Ladda upp logotyp och ikon som assets
+- Ladda upp `user-uploads://Flovvk_-_logo-no_BG.png` som `src/assets/flovvk-logo.png.asset.json` via `lovable-assets create` (CDN-hostad, transparent bakgrund).
+- Kopiera `user-uploads://Flovvk_-_icon.png` till `/tmp` och generera PWA-ikoner + favicon lokalt:
+  - `public/icon-192.png` (192×192, från icon)
+  - `public/icon-512.png` (512×512, från icon)
+  - `public/favicon.png` (från icon)
+- Ta bort gamla `public/favicon.ico`.
 
-2. **Bygg exporten från en enda mall-workbook**
-   - Ladda `OVK-LFP_Mall.xlsx` direkt som export-workbook.
-   - Använd första bladet som mallblad i samma workbook.
-   - För första exporterade bladet: döp om mallbladet och fyll det.
-   - För efterföljande blad: duplicera mallbladet inom samma workbook och fyll kopian.
-   - Då ligger template-stilar, media och nya cellfärger i samma style dictionary hela tiden.
+### 2. index.html
+- `<title>Flowprotokoll>` → `FLOVVK - LFP`
+- `og:title` och `twitter:title` → `FLOVVK - LFP`
+- Byt `<link rel="icon">` till `/favicon.png` (type `image/png`).
 
-3. **Säkerställ att cellfärger sätts på individuella celler**
-   - När `cell.fill` sätts för användarvalda färger, skapa ett nytt fill-objekt per cell.
-   - Undvik att återanvända eller mutera style-objekt som kan vara delade av template-rader/kolumner.
-   - Kontrollera att rad 5 / Frånluft Dontyp mappar till Excel-cell `G18` och endast den cellen får röd fill.
+### 3. vite.config.ts (PWA-manifest)
+- `name: "FLOVVK - LFP"`
+- `short_name: "FLOVVK - LFP"`
+- Behåll `icon-192.png` / `icon-512.png` (nu regenererade från nya loggan).
 
-4. **Bevara befintlig exportlogik i övrigt**
-   - Behåll `fillSheet`, filnamn, sidnummer, datafält, anteckningar och `cellColorsPerSheet`-format.
-   - Ändra endast workbook-/worksheet-kopieringen och färgsättningen så minimalt som möjligt.
+### 4. src/pages/Index.tsx (header)
+- Ersätt `<AirVent />` + `<h1>LFP</h1>` med den nya logotypen (`<img src={flovvkLogo.url} alt="FLOVVK - LFP" className="h-8 w-auto" />`) som klickbar knapp. Behåll klick = reload-bekräftelse.
 
-5. **Verifiering**
-   - Skapa/verifiera ett scenario med ett tomt blad där endast `cellColorsPerSheet[0][4].franluft_dontyp = '#ff0000'` exporteras.
-   - Kontrollera den genererade arbetsboken med script/openpyxl att `G18` är röd och att `C:D15-49` samt `G:H15-49` inte massfärgas.
-   - Kör relevant TypeScript-kontroll efter implementationen.
+### 5. Sök/ersätt övriga texter
+- Inget annat träffar "Flowprotokoll" i src/ (verifierat via rg). Ingen ytterligare textändring behövs.
+
+### Verifiering
+- `rg "Flowprotokoll"` ska returnera tomt efter ändringen.
+- Ny logga visas i headern; favicon och PWA-ikoner uppdaterade.
