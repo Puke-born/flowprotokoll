@@ -26,8 +26,8 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2,xlsx}"],
       },
       manifest: {
-        name: "Flowprotokoll",
-        short_name: "Flowprotokoll",
+        name: "FLOVVK - LFP",
+        short_name: "FLOVVK - LFP",
         description: "Fyll i luftflödesprotokoll och exportera till excel.",
         theme_color: "#1a1a2e",
         background_color: "#1a1a2e",
