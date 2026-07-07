@@ -1,22 +1,26 @@
-Fixa bugg: Style Dictionary Collision i exportAllSheets
+## Plan
 
-I src/lib/exportExcel.ts ska ordningen i for-loopen i exportAllSheets ändras:
+1. **Ta bort modellkopiering mellan olika arbetsböcker**
+   - Sluta skapa `outWb = new ExcelJS.Workbook()` och sedan kopiera `tmpWs.model` från en annan workbook.
+   - Det är fortfarande roten till felet: även om `fillSheet` körs senare kan `newWs.model = { ...tmpWs.model, name }` föra över styleId/style-objekt på ett sätt som ExcelJS tolkar fel.
 
-Nuvarande ordning (bugg):
-1. tmpWb laddas från mallen
-2. fillSheet(tmpWs, ...) körs → stilar registreras i tmpWb
-3. newWs = outWb.addWorksheet(name)
-4. newWs.model = { ...tmpWs.model, name } → råa styleIds kopieras till outWb med fel dictionary
+2. **Bygg exporten från en enda mall-workbook**
+   - Ladda `OVK-LFP_Mall.xlsx` direkt som export-workbook.
+   - Använd första bladet som mallblad i samma workbook.
+   - För första exporterade bladet: döp om mallbladet och fyll det.
+   - För efterföljande blad: duplicera mallbladet inom samma workbook och fyll kopian.
+   - Då ligger template-stilar, media och nya cellfärger i samma style dictionary hela tiden.
 
-Ny ordning (fix):
-1. tmpWb laddas från mallen (oförändrat)
-2. const name = sanitizeSheetName(...) (oförändrat)
-3. const newWs = outWb.addWorksheet(name)
-4. newWs.model = { ...tmpWs.model, name }
-5. fillSheet(newWs, sheet, sidNr, cellColorsPerSheet?.[i])
-   → stilar och cellfärger registreras nu direkt i outWb, inga kolliderande styleIds
+3. **Säkerställ att cellfärger sätts på individuella celler**
+   - När `cell.fill` sätts för användarvalda färger, skapa ett nytt fill-objekt per cell.
+   - Undvik att återanvända eller mutera style-objekt som kan vara delade av template-rader/kolumner.
+   - Kontrollera att rad 5 / Frånluft Dontyp mappar till Excel-cell `G18` och endast den cellen får röd fill.
 
-Exakt kodändring:
-- flytta `fillSheet(tmpWs, sheet, sidNr, cellColorsPerSheet?.[i]);` så att den körs på `newWs` istället
-- placera anropet efter `newWs.model = { ...tmpWs.model, name };`
-- ingen annan logik ändras
+4. **Bevara befintlig exportlogik i övrigt**
+   - Behåll `fillSheet`, filnamn, sidnummer, datafält, anteckningar och `cellColorsPerSheet`-format.
+   - Ändra endast workbook-/worksheet-kopieringen och färgsättningen så minimalt som möjligt.
+
+5. **Verifiering**
+   - Skapa/verifiera ett scenario med ett tomt blad där endast `cellColorsPerSheet[0][4].franluft_dontyp = '#ff0000'` exporteras.
+   - Kontrollera den genererade arbetsboken med script/openpyxl att `G18` är röd och att `C:D15-49` samt `G:H15-49` inte massfärgas.
+   - Kör relevant TypeScript-kontroll efter implementationen.
