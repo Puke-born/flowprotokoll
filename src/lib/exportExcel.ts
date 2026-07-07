@@ -29,6 +29,10 @@ function sanitizeSheetName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, "").slice(0, 31) || "Blad";
 }
 
+function cloneWorksheetModel(model: ExcelJS.WorksheetModel): ExcelJS.WorksheetModel {
+  return JSON.parse(JSON.stringify(model)) as ExcelJS.WorksheetModel;
+}
+
 function fillSheet(ws: ExcelJS.Worksheet, sheet: Sheet, sidNr: string, colors?: Record<string, Record<string, string>>) {
   // Header fields
   ws.getCell("C4").value = sheet.kund || null;
@@ -73,10 +77,13 @@ function fillSheet(ws: ExcelJS.Worksheet, sheet: Sheet, sidNr: string, colors?: 
         const colIdx = COL_KEYS.indexOf(colKey);
         if (colIdx === -1) return;
         const cell = ws.getCell(14 + rowIdx, colIdx + 1);
-        cell.fill = {
+        cell.style = {
+          ...cell.style,
+          fill: {
           type: "pattern",
           pattern: "solid",
           fgColor: { argb: hexToArgb(hex) },
+          },
         };
       });
     });
@@ -94,38 +101,22 @@ export async function exportAllSheets(
   });
 
   const outWb = new ExcelJS.Workbook();
+  await outWb.xlsx.load(templateBuffer.slice(0));
   const total = sheets.length;
-
-  // Preload media (images) from template into output workbook so worksheet
-  // model copies that reference imageId 0 resolve correctly.
-  {
-    const mediaWb = new ExcelJS.Workbook();
-    await mediaWb.xlsx.load(templateBuffer.slice(0));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const srcMedia = (mediaWb as any).media as any[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dstMedia = (outWb as any).media as any[];
-    srcMedia.forEach((m) => dstMedia.push({ ...m }));
-  }
+  const templateWs = outWb.worksheets[0];
+  const templateModel = cloneWorksheetModel(templateWs.model);
 
   for (let i = 0; i < total; i++) {
     const sheet = sheets[i];
     const sidNr = `${i + 1}/${total}`;
 
-    // Load a fresh copy of the template per sheet so images/styles bind cleanly
-    const tmpWb = new ExcelJS.Workbook();
-    await tmpWb.xlsx.load(templateBuffer.slice(0));
-    const tmpWs = tmpWb.worksheets[0];
-
     const name = sanitizeSheetName(
       sheet.name || (total === 1 ? "Luftflödesprotokoll" : `Blad ${i + 1}`)
     );
 
-    // 1. Create sheet and copy model first
-    const newWs = outWb.addWorksheet(name);
-    newWs.model = { ...tmpWs.model, name };
+    const newWs = i === 0 ? templateWs : outWb.addWorksheet(name);
+    newWs.model = { ...cloneWorksheetModel(templateModel), name, id: newWs.id };
 
-    // 2. Fill data and colors directly on the new sheet so styles register safely in outWb
     fillSheet(newWs, sheet, sidNr, cellColorsPerSheet?.[i]);
   }
 
