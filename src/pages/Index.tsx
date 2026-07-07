@@ -13,6 +13,7 @@ import {
 import ProtocolHeader from "@/components/ProtocolHeader";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import NotesGrid from "@/components/NotesGrid";
+import flovvkLogo from "@/assets/flovvk-logo.png.asset.json";
 import { exportAllSheets } from "@/lib/exportExcel";
 import { getSheetNames, importSheets } from "@/lib/importExcel";
 import { toast } from "sonner";
@@ -740,8 +741,7 @@ const Index = () => {
             title="Tvinga uppdatering av appen"
             className="flex items-center gap-2 rounded-md px-1 -mx-1 hover:bg-muted transition-colors"
           >
-            <AirVent className="w-6 h-6 text-primary" />
-            <h1 className="text-lg font-bold text-foreground tracking-tight">LFP</h1>
+            <img src={flovvkLogo.url} alt="FLOVVK - LFP" className="h-8 w-auto" />
           </button>
           {/* Hidden file inputs */}
           <input ref={projectInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadProject} />
