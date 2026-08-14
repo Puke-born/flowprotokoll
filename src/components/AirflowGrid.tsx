@@ -107,7 +107,7 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>, rowIdx: number, colIdx: number) => {
-      if (e.key === "Enter" || e.key === "ArrowDown") {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
         const next = gridRef.current?.querySelector<HTMLInputElement>(
           `[data-row="${rowIdx + 1}"][data-col="${colIdx}"]`

@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ProtocolHeader from "@/components/ProtocolHeader";
+import { useEnterAsTab } from "@/hooks/use-enter-as-tab";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import NotesGrid from "@/components/NotesGrid";
 import flovvkLogo from "@/assets/flovvk-logo.png.asset.json";
@@ -180,6 +181,8 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem(FORMULA_BAR_KEY, formulaBarOpen ? "1" : "0");
   }, [formulaBarOpen]);
+
+  useEnterAsTab();
 
   // Anteckningsrutnät: fokuserad cell + mätt rad-bredd för dynamisk inputbredd
   const confirmConfig = {
