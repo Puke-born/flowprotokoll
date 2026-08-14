@@ -171,7 +171,7 @@ const NotesGrid = memo(({ notes, onNotesCommit, onCellSelect }: NotesGridProps) 
                         let nr = rowIdx;
                         let nc = colIdx;
                         if (e.key === "ArrowUp") nr = rowIdx - 1;
-                        else if (e.key === "ArrowDown" || e.key === "Enter") nr = rowIdx + 1;
+                        else if (e.key === "ArrowDown") nr = rowIdx + 1;
                         else if (e.key === "ArrowLeft" && atStart) nc = colIdx - 1;
                         else if (e.key === "ArrowRight" && atEnd) nc = colIdx + 1;
                         else if (e.key === "Tab") {
