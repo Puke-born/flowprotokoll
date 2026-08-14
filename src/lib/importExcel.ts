@@ -13,6 +13,49 @@ interface ImportedSheet {
   notes: string;
 }
 
+export const GRID_ROWS = 36;
+
+export interface SmartImportSettings {
+  dataStart: number;
+  dataEnd: number;
+  notesStart: number;
+  notesEnd: number;
+  kundCell: string;
+  anlaggningCell: string;
+  systemCell: string;
+  planCell: string;
+}
+
+export interface SheetOverflow {
+  name: string;
+  lastDataRow: number;
+}
+
+export interface SmartImportedSheet {
+  name: string;
+  rows: GridRow[];
+  notes: string;
+  system: string;
+  plan: string;
+}
+
+export interface SmartImportResult {
+  kund: string;
+  anlaggning: string;
+  sheets: SmartImportedSheet[];
+}
+
+export const DEFAULT_SMART_SETTINGS: SmartImportSettings = {
+  dataStart: 14,
+  dataEnd: 49,
+  notesStart: 51,
+  notesEnd: 55,
+  kundCell: "",
+  anlaggningCell: "",
+  systemCell: "",
+  planCell: "",
+};
+
 function readCell(v: ExcelJS.CellValue | null | undefined): string {
   if (v == null) return "";
   if (typeof v === "string") return v;
