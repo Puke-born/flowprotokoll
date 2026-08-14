@@ -26,7 +26,7 @@ function hexToArgb(hex: string): string {
 }
 
 function sanitizeSheetName(name: string): string {
-  return name.replace(/[<>:"/\\|?*]/g, "").slice(0, 31) || "Blad";
+  return name.replace(/[<>:"/\\|?*[\]]/g, "").slice(0, 31) || "Blad";
 }
 
 function cloneWorksheetModel(model: ExcelJS.WorksheetModel): ExcelJS.WorksheetModel {
@@ -94,11 +94,15 @@ export async function exportAllSheets(
   sheets: Sheet[],
   cellColorsPerSheet?: Record<string, Record<string, string>>[]
 ) {
-  const templateUrl = `${import.meta.env.BASE_URL}OVK-LFP_Mall.xlsx`;
-  const templateBuffer = await fetch(templateUrl).then((r) => {
-    if (!r.ok) throw new Error(`Kunde inte ladda mall: ${r.status}`);
-    return r.arrayBuffer();
-  });
+  let templateBuffer: ArrayBuffer;
+  try {
+    const templateUrl = `${import.meta.env.BASE_URL}LFP_Mall.xlsx`;
+    const response = await fetch(templateUrl);
+    if (!response.ok) throw new Error(String(response.status));
+    templateBuffer = await response.arrayBuffer();
+  } catch {
+    throw new Error("Kunde inte ladda Excel-mallen (LFP_Mall.xlsx)");
+  }
 
   const outWb = new ExcelJS.Workbook();
   await outWb.xlsx.load(templateBuffer.slice(0));
