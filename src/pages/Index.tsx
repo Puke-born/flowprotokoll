@@ -527,7 +527,7 @@ const Index = () => {
       toast.success("Excel-fil exporterad!");
     } catch (err) {
       console.error(err);
-      toast.error("Kunde inte exportera Excel-fil");
+      toast.error(err instanceof Error ? err.message : "Kunde inte exportera Excel-fil");
     }
   }, [sheets, cellColorsMap]);
 
