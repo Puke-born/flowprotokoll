@@ -157,6 +157,7 @@ const Index = () => {
   const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
+  const [importFileName, setImportFileName] = useState<string>("");
 
   // Cell coloring state
   const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
@@ -383,8 +384,9 @@ const Index = () => {
     reader.onload = async (ev) => {
       try {
         const buffer = ev.target?.result as ArrayBuffer;
-        const names = await getSheetNames(buffer);
+        const names = await getSheetNames(buffer, file.name);
         setImportFileBuffer(buffer);
+        setImportFileName(file.name);
         setAvailableSheetNames(names);
         setSelectedSheetNames(names); // select all by default
         setImportDialogOpen(true);
@@ -401,7 +403,7 @@ const Index = () => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
     let imported: Awaited<ReturnType<typeof importSheets>>;
     try {
-      imported = await importSheets(importFileBuffer, selectedSheetNames);
+      imported = await importSheets(importFileBuffer, selectedSheetNames, importFileName);
     } catch (err) {
       console.error(err);
       toast.error("Kunde inte importera filen");
@@ -431,7 +433,7 @@ const Index = () => {
     setImportDialogOpen(false);
     setImportFileBuffer(null);
     toast.success(`${newSheets.length} blad importerade`);
-  }, [importFileBuffer, selectedSheetNames]);
+  }, [importFileBuffer, importFileName, selectedSheetNames]);
 
   const toggleSheetSelection = useCallback((name: string) => {
     setSelectedSheetNames((prev) =>
