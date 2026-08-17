@@ -1042,10 +1042,6 @@ const Index = () => {
           <DialogHeader>
             <DialogTitle>Välj blad att importera</DialogTitle>
           </DialogHeader>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Välj blad att importera</DialogTitle>
-          </DialogHeader>
           <div className="space-y-3 py-2">
             {availableSheetNames.map((name) => (
               <label key={name} className="flex items-center gap-3 cursor-pointer">
