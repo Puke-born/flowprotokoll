@@ -403,7 +403,7 @@ const Index = () => {
         setImportFileBuffer(buffer);
         setAvailableSheetNames(names);
         setSelectedSheetNames(names); // select all by default
-        setImportDialogOpen(true);
+        setImportModeOpen(true);
       } catch (err) {
         console.error(err);
         toast.error("Kunde inte läsa filen");
