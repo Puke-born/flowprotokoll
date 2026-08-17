@@ -16,7 +16,17 @@ import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import NotesGrid from "@/components/NotesGrid";
 import flovvkLogo from "@/assets/flovvk-logo.png.asset.json";
 import { exportAllSheets } from "@/lib/exportExcel";
-import { getSheetNames, importSheets } from "@/lib/importExcel";
+import {
+  getSheetNames,
+  importSheets,
+  importSheetsSmart,
+  scanSmartImport,
+  DEFAULT_SMART_SETTINGS,
+  type SmartImportSettings,
+  type SheetOverflow,
+} from "@/lib/importExcel";
+import ImportMappingDialog from "@/components/ImportMappingDialog";
+import ImportWarningDialog from "@/components/ImportWarningDialog";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -157,6 +167,12 @@ const Index = () => {
   const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
+  const [importModeOpen, setImportModeOpen] = useState(false);
+  const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
+  const [smartSettings, setSmartSettings] = useState<SmartImportSettings>(DEFAULT_SMART_SETTINGS);
+  const [smartScanning, setSmartScanning] = useState(false);
+  const [overflows, setOverflows] = useState<SheetOverflow[]>([]);
+  const [warningOpen, setWarningOpen] = useState(false);
 
   // Cell coloring state
   const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
@@ -387,7 +403,7 @@ const Index = () => {
         setImportFileBuffer(buffer);
         setAvailableSheetNames(names);
         setSelectedSheetNames(names); // select all by default
-        setImportDialogOpen(true);
+        setImportModeOpen(true);
       } catch (err) {
         console.error(err);
         toast.error("Kunde inte läsa filen");
@@ -438,6 +454,72 @@ const Index = () => {
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
     );
   }, []);
+
+  const runSmartImport = useCallback(
+    async (endOverrides: Record<string, number>) => {
+      if (!importFileBuffer || selectedSheetNames.length === 0) return;
+      try {
+        const result = await importSheetsSmart(
+          importFileBuffer,
+          selectedSheetNames,
+          smartSettings,
+          endOverrides
+        );
+        const newSheets: Sheet[] = result.sheets.map((s) => ({
+          ...createEmptySheet(s.name),
+          kund: result.kund,
+          anlaggning: result.anlaggning,
+          system: s.system,
+          plan: s.plan,
+          rows: s.rows,
+          notes: s.notes,
+        }));
+        const newImportedMap = new Map<number, Set<string>[]>();
+        result.sheets.forEach((s, sheetIdx) => {
+          newImportedMap.set(
+            sheetIdx,
+            s.rows.map((row) => {
+              const keys = new Set<string>();
+              for (const [k, v] of Object.entries(row)) if (v) keys.add(k);
+              return keys;
+            })
+          );
+        });
+        setImportedCellsMap(newImportedMap);
+        setCellColorsMap(new Map());
+        setSheets(newSheets);
+        setActiveSheet(0);
+        setWarningOpen(false);
+        setMappingDialogOpen(false);
+        setImportFileBuffer(null);
+        setOverflows([]);
+        toast.success(`${newSheets.length} blad importerade`);
+      } catch (err) {
+        console.error(err);
+        toast.error("Kunde inte importera filen");
+      }
+    },
+    [importFileBuffer, selectedSheetNames, smartSettings]
+  );
+
+  const handleSmartConfirm = useCallback(async () => {
+    if (!importFileBuffer || selectedSheetNames.length === 0) return;
+    setSmartScanning(true);
+    try {
+      const found = await scanSmartImport(importFileBuffer, selectedSheetNames, smartSettings);
+      if (found.length > 0) {
+        setOverflows(found);
+        setWarningOpen(true);
+        return;
+      }
+      await runSmartImport({});
+    } catch (err) {
+      console.error(err);
+      toast.error("Kunde inte analysera filen");
+    } finally {
+      setSmartScanning(false);
+    }
+  }, [importFileBuffer, selectedSheetNames, smartSettings, runSmartImport]);
 
   const fileHandleRef = useRef<FileSystemFileHandle | null>(null);
 
@@ -955,6 +1037,56 @@ const Index = () => {
           onCellSelect={handleNotesCellSelect}
         />
       </main>
+      <Dialog open={importModeOpen} onOpenChange={setImportModeOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Hur vill du importera?</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <Button
+              className="h-16 text-base"
+              onClick={() => {
+                setImportModeOpen(false);
+                setImportDialogOpen(true);
+              }}
+            >
+              Snabbimport (Standard)
+            </Button>
+            <Button
+              variant="secondary"
+              className="h-16 text-base"
+              onClick={() => {
+                setImportModeOpen(false);
+                setMappingDialogOpen(true);
+              }}
+            >
+              Smart Import
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <ImportMappingDialog
+        open={mappingDialogOpen}
+        onOpenChange={setMappingDialogOpen}
+        availableSheetNames={availableSheetNames}
+        selectedSheetNames={selectedSheetNames}
+        onToggleSheet={toggleSheetSelection}
+        settings={smartSettings}
+        onSettingsChange={setSmartSettings}
+        onConfirm={handleSmartConfirm}
+        loading={smartScanning}
+      />
+      <ImportWarningDialog
+        open={warningOpen}
+        onOpenChange={setWarningOpen}
+        overflows={overflows}
+        onExpand={() => {
+          const overrides: Record<string, number> = {};
+          overflows.forEach((o) => { overrides[o.name] = o.lastDataRow; });
+          void runSmartImport(overrides);
+        }}
+        onIgnore={() => void runSmartImport({})}
+      />
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent>
           <DialogHeader>
