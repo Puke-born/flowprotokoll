@@ -455,6 +455,72 @@ const Index = () => {
     );
   }, []);
 
+  const runSmartImport = useCallback(
+    async (endOverrides: Record<string, number>) => {
+      if (!importFileBuffer || selectedSheetNames.length === 0) return;
+      try {
+        const result = await importSheetsSmart(
+          importFileBuffer,
+          selectedSheetNames,
+          smartSettings,
+          endOverrides
+        );
+        const newSheets: Sheet[] = result.sheets.map((s) => ({
+          ...createEmptySheet(s.name),
+          kund: result.kund,
+          anlaggning: result.anlaggning,
+          system: s.system,
+          plan: s.plan,
+          rows: s.rows,
+          notes: s.notes,
+        }));
+        const newImportedMap = new Map<number, Set<string>[]>();
+        result.sheets.forEach((s, sheetIdx) => {
+          newImportedMap.set(
+            sheetIdx,
+            s.rows.map((row) => {
+              const keys = new Set<string>();
+              for (const [k, v] of Object.entries(row)) if (v) keys.add(k);
+              return keys;
+            })
+          );
+        });
+        setImportedCellsMap(newImportedMap);
+        setCellColorsMap(new Map());
+        setSheets(newSheets);
+        setActiveSheet(0);
+        setWarningOpen(false);
+        setMappingDialogOpen(false);
+        setImportFileBuffer(null);
+        setOverflows([]);
+        toast.success(`${newSheets.length} blad importerade`);
+      } catch (err) {
+        console.error(err);
+        toast.error("Kunde inte importera filen");
+      }
+    },
+    [importFileBuffer, selectedSheetNames, smartSettings]
+  );
+
+  const handleSmartConfirm = useCallback(async () => {
+    if (!importFileBuffer || selectedSheetNames.length === 0) return;
+    setSmartScanning(true);
+    try {
+      const found = await scanSmartImport(importFileBuffer, selectedSheetNames, smartSettings);
+      if (found.length > 0) {
+        setOverflows(found);
+        setWarningOpen(true);
+        return;
+      }
+      await runSmartImport({});
+    } catch (err) {
+      console.error(err);
+      toast.error("Kunde inte analysera filen");
+    } finally {
+      setSmartScanning(false);
+    }
+  }, [importFileBuffer, selectedSheetNames, smartSettings, runSmartImport]);
+
   const fileHandleRef = useRef<FileSystemFileHandle | null>(null);
 
   const handleSaveProject = useCallback(async () => {
