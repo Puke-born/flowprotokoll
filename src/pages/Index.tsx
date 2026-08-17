@@ -1037,6 +1037,56 @@ const Index = () => {
           onCellSelect={handleNotesCellSelect}
         />
       </main>
+      <Dialog open={importModeOpen} onOpenChange={setImportModeOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Hur vill du importera?</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <Button
+              className="h-16 text-base"
+              onClick={() => {
+                setImportModeOpen(false);
+                setImportDialogOpen(true);
+              }}
+            >
+              Snabbimport (Standard)
+            </Button>
+            <Button
+              variant="secondary"
+              className="h-16 text-base"
+              onClick={() => {
+                setImportModeOpen(false);
+                setMappingDialogOpen(true);
+              }}
+            >
+              Smart Import
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <ImportMappingDialog
+        open={mappingDialogOpen}
+        onOpenChange={setMappingDialogOpen}
+        availableSheetNames={availableSheetNames}
+        selectedSheetNames={selectedSheetNames}
+        onToggleSheet={toggleSheetSelection}
+        settings={smartSettings}
+        onSettingsChange={setSmartSettings}
+        onConfirm={handleSmartConfirm}
+        loading={smartScanning}
+      />
+      <ImportWarningDialog
+        open={warningOpen}
+        onOpenChange={setWarningOpen}
+        overflows={overflows}
+        onExpand={() => {
+          const overrides: Record<string, number> = {};
+          overflows.forEach((o) => { overrides[o.name] = o.lastDataRow; });
+          void runSmartImport(overrides);
+        }}
+        onIgnore={() => void runSmartImport({})}
+      />
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent>
           <DialogHeader>
