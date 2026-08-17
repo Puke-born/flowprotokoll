@@ -16,7 +16,17 @@ import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import NotesGrid from "@/components/NotesGrid";
 import flovvkLogo from "@/assets/flovvk-logo.png.asset.json";
 import { exportAllSheets } from "@/lib/exportExcel";
-import { getSheetNames, importSheets } from "@/lib/importExcel";
+import {
+  getSheetNames,
+  importSheets,
+  importSheetsSmart,
+  scanSmartImport,
+  DEFAULT_SMART_SETTINGS,
+  type SmartImportSettings,
+  type SheetOverflow,
+} from "@/lib/importExcel";
+import ImportMappingDialog from "@/components/ImportMappingDialog";
+import ImportWarningDialog from "@/components/ImportWarningDialog";
 import { toast } from "sonner";
 import {
   Dialog,
