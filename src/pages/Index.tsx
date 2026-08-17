@@ -167,6 +167,12 @@ const Index = () => {
   const [availableSheetNames, setAvailableSheetNames] = useState<string[]>([]);
   const [selectedSheetNames, setSelectedSheetNames] = useState<string[]>([]);
   const [importFileBuffer, setImportFileBuffer] = useState<ArrayBuffer | null>(null);
+  const [importModeOpen, setImportModeOpen] = useState(false);
+  const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
+  const [smartSettings, setSmartSettings] = useState<SmartImportSettings>(DEFAULT_SMART_SETTINGS);
+  const [smartScanning, setSmartScanning] = useState(false);
+  const [overflows, setOverflows] = useState<SheetOverflow[]>([]);
+  const [warningOpen, setWarningOpen] = useState(false);
 
   // Cell coloring state
   const [cellColorsMap, setCellColorsMap] = useState<Map<number, Record<string, Record<string, string>>>>(() => {
