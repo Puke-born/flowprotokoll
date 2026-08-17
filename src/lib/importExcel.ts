@@ -34,20 +34,28 @@ function readCell(v: ExcelJS.CellValue | null | undefined): string {
   return "";
 }
 
-async function loadWorkbook(file: ArrayBuffer): Promise<ExcelJS.Workbook> {
+async function loadWorkbook(file: ArrayBuffer, fileName?: string): Promise<ExcelJS.Workbook> {
   const wb = new ExcelJS.Workbook();
+  if (fileName && /\.xls$/i.test(fileName.trim())) {
+    // Legacy .xls: lazy-load SheetJS only when needed, convert to xlsx
+    const XLSX = await import("xlsx");
+    const xlsWb = XLSX.read(file, { type: "array" });
+    const xlsxBuffer = XLSX.write(xlsWb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+    await wb.xlsx.load(xlsxBuffer as ExcelJS.Buffer);
+    return wb;
+  }
   // exceljs accepts ArrayBuffer via xlsx.load
   await wb.xlsx.load(file as ExcelJS.Buffer);
   return wb;
 }
 
-export async function getSheetNames(file: ArrayBuffer): Promise<string[]> {
-  const wb = await loadWorkbook(file);
+export async function getSheetNames(file: ArrayBuffer, fileName?: string): Promise<string[]> {
+  const wb = await loadWorkbook(file, fileName);
   return wb.worksheets.map((ws) => ws.name);
 }
 
-export async function importSheets(file: ArrayBuffer, sheetNames: string[]): Promise<ImportedSheet[]> {
-  const wb = await loadWorkbook(file);
+export async function importSheets(file: ArrayBuffer, sheetNames: string[], fileName?: string): Promise<ImportedSheet[]> {
+  const wb = await loadWorkbook(file, fileName);
   return sheetNames.map((name) => {
     const ws = wb.getWorksheet(name);
     if (!ws) return { name, rows: Array.from({ length: 36 }, () => ({})), notes: "" };
