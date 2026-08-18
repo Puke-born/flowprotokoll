@@ -286,9 +286,30 @@ const Index = () => {
         next.set(activeSheet, rowSets);
         return next;
       });
+      // Clear manual color for this cell so imported/marker colors reset on edit
+      setCellColorsMap((prev) => {
+        const sheetColors = prev.get(activeSheet);
+        if (!sheetColors?.[rowIndex]?.[colKey]) return prev;
+        const next = new Map(prev);
+        const rowColors = { ...sheetColors[rowIndex] };
+        delete rowColors[colKey];
+        if (Object.keys(rowColors).length === 0) {
+          const newSheetColors = { ...sheetColors };
+          delete newSheetColors[rowIndex];
+          if (Object.keys(newSheetColors).length === 0) {
+            next.delete(activeSheet);
+          } else {
+            next.set(activeSheet, newSheetColors);
+          }
+        } else {
+          next.set(activeSheet, { ...sheetColors, [rowIndex]: rowColors });
+        }
+        return next;
+      });
     },
     [activeSheet]
   );
+
 
   const handleNotesCommit = useCallback((value: string) => {
     setSheets((prev) => {
