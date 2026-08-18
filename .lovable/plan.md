@@ -1,29 +1,20 @@
-## Plan: Byt namn till "FLOVVK - LFP" och uppdatera logotyp/ikoner
+Rensa cellfärg vid manuell redigering
 
-### 1. Ladda upp logotyp och ikon som assets
-- Ladda upp `user-uploads://Flovvk_-_logo-no_BG.png` som `src/assets/flovvk-logo.png.asset.json` via `lovable-assets create` (CDN-hostad, transparent bakgrund).
-- Kopiera `user-uploads://Flovvk_-_icon.png` till `/tmp` och generera PWA-ikoner + favicon lokalt:
-  - `public/icon-192.png` (192×192, från icon)
-  - `public/icon-512.png` (512×512, från icon)
-  - `public/favicon.png` (från icon)
-- Ta bort gamla `public/favicon.ico`.
+Problem
+-------
+Celler som fått gul bakgrund från Excel-import försvinner inte när användaren skriver om cellvärdet. Användaren vill att färgmarkeringen ska rensas när en cell redigeras manuellt, medan färgväljaren fortfarande ska fungera som vanligt.
 
-### 2. index.html
-- `<title>Flowprotokoll>` → `FLOVVK - LFP`
-- `og:title` och `twitter:title` → `FLOVVK - LFP`
-- Byt `<link rel="icon">` till `/favicon.png` (type `image/png`).
+Lösning
+-------
+1. Uppdatera `handleCellChange` i `src/pages/Index.tsx`.
+   - Efter att arkets rader uppdaterats, kontrollera om den aktuella cellen (`rowIndex`, `colKey`) finns i `cellColorsMap` för aktuellt blad.
+   - Om den finns, skapa ett nytt `cellColorsMap` och ta bort cellens färg så att bakgrunden återgår till standard.
+2. Lämna `handleApplyColor` och färgväljaren oförändrad så att användaren fortfarande kan sätta färger manuellt.
 
-### 3. vite.config.ts (PWA-manifest)
-- `name: "FLOVVK - LFP"`
-- `short_name: "FLOVVK - LFP"`
-- Behåll `icon-192.png` / `icon-512.png` (nu regenererade från nya loggan).
+Berörda filer
+-------------
+- `src/pages/Index.tsx`
 
-### 4. src/pages/Index.tsx (header)
-- Ersätt `<AirVent />` + `<h1>LFP</h1>` med den nya logotypen (`<img src={flovvkLogo.url} alt="FLOVVK - LFP" className="h-8 w-auto" />`) som klickbar knapp. Behåll klick = reload-bekräftelse.
-
-### 5. Sök/ersätt övriga texter
-- Inget annat träffar "Flowprotokoll" i src/ (verifierat via rg). Ingen ytterligare textändring behövs.
-
-### Verifiering
-- `rg "Flowprotokoll"` ska returnera tomt efter ändringen.
-- Ny logga visas i headern; favicon och PWA-ikoner uppdaterade.
+Uppgift
+-------
+Modifiera `handleCellChange` så att redigering av en cell även rensar eventuell färgmarkering i `cellColorsMap` för just den cellen.
