@@ -12,6 +12,7 @@ function extractMainAsset(html: string): string | null {
 
 async function fetchLatestAsset(): Promise<string | null> {
   try {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return null;
     const res = await fetch("/?_uc=" + Date.now(), {
       cache: "no-store",
       credentials: "same-origin",

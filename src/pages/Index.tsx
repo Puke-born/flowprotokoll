@@ -15,6 +15,7 @@ import { useEnterAsTab } from "@/hooks/use-enter-as-tab";
 import AirflowGrid, { type GridRow } from "@/components/AirflowGrid";
 import NotesGrid from "@/components/NotesGrid";
 import flovvkLogo from "@/assets/flovvk-logo.png.asset.json";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { exportAllSheets } from "@/lib/exportExcel";
 import { getSheetNames, importSheets } from "@/lib/importExcel";
 import { toast } from "sonner";
@@ -727,6 +728,8 @@ const Index = () => {
     });
   }, [activeSheet]);
 
+  const isOnline = useOnlineStatus();
+
   const headerFields = [
     { label: "Kund", value: sheet.kund, onChange: updateSheetField("kund") },
     { label: "Plan", value: sheet.plan, onChange: updateSheetField("plan") },
@@ -740,6 +743,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Offline indicator */}
+      {!isOnline && (
+        <div className="bg-muted text-muted-foreground text-xs px-4 py-1.5 text-center border-b border-border">
+          Offline-läge — ändringar sparas lokalt på surfplattan
+        </div>
+      )}
       {/* Update banner */}
       {updateAvailable && (
         <div className="sticky top-0 z-20 bg-primary text-primary-foreground text-sm px-4 py-2 flex items-center justify-between gap-3 shadow">

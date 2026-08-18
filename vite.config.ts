@@ -18,12 +18,46 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: null,
       devOptions: {
         enabled: false,
       },
       workbox: {
+        navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/~oauth/],
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2,xlsx}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest,woff,woff2,xlsx}"],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ request, sameOrigin }) => sameOrigin && request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "html-navigations",
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 20 },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith("/assets/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "static-assets",
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && /\.(?:png|svg|ico|woff2?|xlsx)$/i.test(url.pathname),
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "static-files",
+              expiration: { maxEntries: 100 },
+            },
+          },
+        ],
       },
       manifest: {
         name: "FLOVVK - LFP",
@@ -33,6 +67,8 @@ export default defineConfig(({ mode }) => ({
         background_color: "#1a1a2e",
         display: "standalone",
         start_url: "/",
+        scope: "/",
+        orientation: "any",
         icons: [
           {
             src: "/icon-192.png",
@@ -43,6 +79,12 @@ export default defineConfig(({ mode }) => ({
             src: "/icon-512.png",
             sizes: "512x512",
             type: "image/png",
+          },
+          {
+            src: "/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
         ],
       },
