@@ -1004,6 +1004,7 @@ const Index = () => {
           importedCells={importedCellsMap.get(activeSheet)}
           cellColors={cellColorsMap.get(activeSheet)}
           onCellChange={handleCellChange}
+          onCellInput={handleCellInputChange}
           onCellSelect={handleCellSelect}
           onRowReorder={handleRowReorder}
         />
