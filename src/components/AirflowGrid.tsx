@@ -240,6 +240,7 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
                     highlightImported={!!importedCells?.[rowIdx]?.has(col.key)}
                     bgColor={cellColors?.[rowIdx]?.[col.key]}
                     onCommit={onCellChange}
+                    onInput={onCellInput}
                     onSelect={onCellSelect}
                     onKeyDown={handleKeyDown}
                   />
