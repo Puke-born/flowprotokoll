@@ -38,6 +38,7 @@ interface AirflowGridProps {
   importedCells?: Set<string>[];
   cellColors?: Record<string, Record<string, string>>;
   onCellChange: (rowIndex: number, colKey: string, value: string) => void;
+  onCellInput?: (rowIndex: number, colKey: string) => void;
   onCellSelect?: (row: number, colKey: string) => void;
   onRowReorder?: (fromIndex: number, toIndex: number) => void;
 }
