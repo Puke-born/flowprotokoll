@@ -61,7 +61,7 @@ interface GridCellProps {
 
 const GridCell = memo(function GridCell({
   rowIdx, colIdx, colKey, value, center, pad, highlightImported, bgColor,
-  onCommit, onSelect, onKeyDown,
+  onCommit, onInput, onSelect, onKeyDown,
 }: GridCellProps) {
   const [local, setLocal] = useState(value);
   const focusedRef = useRef(false);
@@ -88,7 +88,10 @@ const GridCell = memo(function GridCell({
       type="text"
       inputMode="text"
       value={local}
-      onChange={(e) => setLocal(e.target.value)}
+      onChange={(e) => {
+        setLocal(e.target.value);
+        onInput?.(rowIdx, colKey);
+      }}
       onKeyDown={(e) => onKeyDown(e, rowIdx, colIdx)}
       onFocus={() => { focusedRef.current = true; onSelect?.(rowIdx, colKey); }}
       onBlur={() => { focusedRef.current = false; commit(local); }}
