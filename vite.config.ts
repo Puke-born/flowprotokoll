@@ -96,4 +96,9 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
+  define: {
+    __APP_VERSION__: JSON.stringify(
+      new Date().toLocaleString("sv-SE", { timeZone: "Europe/Stockholm" })
+    ),
+  },
 }));

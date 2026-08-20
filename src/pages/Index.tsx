@@ -1069,20 +1069,23 @@ const Index = () => {
               {confirmAction ? confirmConfig[confirmAction].description : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Avbryt</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (confirmAction === "new") handleNewProtocol();
-                else if (confirmAction === "clear") handleClear();
-                else if (confirmAction === "remove") handleRemoveSheet();
-                else if (confirmAction === "export") doExport();
-                else if (confirmAction === "reload") { setConfirmAction(null); forceHardReload(); return; }
-                setConfirmAction(null);
-              }}
-            >
-              Bekräfta
-            </AlertDialogAction>
+          <AlertDialogFooter className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[10px] text-muted-foreground">Version: {__APP_VERSION__}</p>
+            <div className="flex items-center gap-2">
+              <AlertDialogCancel>Avbryt</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (confirmAction === "new") handleNewProtocol();
+                  else if (confirmAction === "clear") handleClear();
+                  else if (confirmAction === "remove") handleRemoveSheet();
+                  else if (confirmAction === "export") doExport();
+                  else if (confirmAction === "reload") { setConfirmAction(null); forceHardReload(); return; }
+                  setConfirmAction(null);
+                }}
+              >
+                Bekräfta
+              </AlertDialogAction>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
