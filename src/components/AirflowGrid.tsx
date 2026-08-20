@@ -105,7 +105,7 @@ const GridCell = memo(function GridCell({
   );
 });
 
-const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCellSelect, onRowReorder }: AirflowGridProps) => {
+const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCellInput, onCellSelect, onRowReorder }: AirflowGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
