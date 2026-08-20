@@ -38,6 +38,7 @@ interface AirflowGridProps {
   importedCells?: Set<string>[];
   cellColors?: Record<string, Record<string, string>>;
   onCellChange: (rowIndex: number, colKey: string, value: string) => void;
+  onCellInput?: (rowIndex: number, colKey: string) => void;
   onCellSelect?: (row: number, colKey: string) => void;
   onRowReorder?: (fromIndex: number, toIndex: number) => void;
 }
@@ -53,13 +54,14 @@ interface GridCellProps {
   highlightImported: boolean;
   bgColor?: string;
   onCommit: (rowIdx: number, colKey: string, value: string) => void;
+  onInput?: (rowIdx: number, colKey: string) => void;
   onSelect?: (rowIdx: number, colKey: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, rowIdx: number, colIdx: number) => void;
 }
 
 const GridCell = memo(function GridCell({
   rowIdx, colIdx, colKey, value, center, pad, highlightImported, bgColor,
-  onCommit, onSelect, onKeyDown,
+  onCommit, onInput, onSelect, onKeyDown,
 }: GridCellProps) {
   const [local, setLocal] = useState(value);
   const focusedRef = useRef(false);
@@ -86,7 +88,10 @@ const GridCell = memo(function GridCell({
       type="text"
       inputMode="text"
       value={local}
-      onChange={(e) => setLocal(e.target.value)}
+      onChange={(e) => {
+        setLocal(e.target.value);
+        onInput?.(rowIdx, colKey);
+      }}
       onKeyDown={(e) => onKeyDown(e, rowIdx, colIdx)}
       onFocus={() => { focusedRef.current = true; onSelect?.(rowIdx, colKey); }}
       onBlur={() => { focusedRef.current = false; commit(local); }}
@@ -100,7 +105,7 @@ const GridCell = memo(function GridCell({
   );
 });
 
-const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCellSelect, onRowReorder }: AirflowGridProps) => {
+const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCellInput, onCellSelect, onRowReorder }: AirflowGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
@@ -235,6 +240,7 @@ const AirflowGrid = memo(({ rows, importedCells, cellColors, onCellChange, onCel
                     highlightImported={!!importedCells?.[rowIdx]?.has(col.key)}
                     bgColor={cellColors?.[rowIdx]?.[col.key]}
                     onCommit={onCellChange}
+                    onInput={onCellInput}
                     onSelect={onCellSelect}
                     onKeyDown={handleKeyDown}
                   />

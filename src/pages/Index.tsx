@@ -266,6 +266,33 @@ const Index = () => {
     });
   }, [activeSheet]);
 
+  const handleCellInputChange = useCallback(
+    (rowIndex: number, colKey: string) => {
+      // Clear manual color for this cell as soon as the user starts typing,
+      // even if the value ends up the same after editing.
+      setCellColorsMap((prev) => {
+        const sheetColors = prev.get(activeSheet);
+        if (!sheetColors?.[rowIndex]?.[colKey]) return prev;
+        const next = new Map(prev);
+        const rowColors = { ...sheetColors[rowIndex] };
+        delete rowColors[colKey];
+        if (Object.keys(rowColors).length === 0) {
+          const newSheetColors = { ...sheetColors };
+          delete newSheetColors[rowIndex];
+          if (Object.keys(newSheetColors).length === 0) {
+            next.delete(activeSheet);
+          } else {
+            next.set(activeSheet, newSheetColors);
+          }
+        } else {
+          next.set(activeSheet, { ...sheetColors, [rowIndex]: rowColors });
+        }
+        return next;
+      });
+    },
+    [activeSheet]
+  );
+
   const handleCellChange = useCallback(
     (rowIndex: number, colKey: string, value: string) => {
       setSheets((prev) => {
@@ -287,7 +314,7 @@ const Index = () => {
         next.set(activeSheet, rowSets);
         return next;
       });
-      // Clear manual color for this cell so imported/marker colors reset on edit
+      // Also clear manual color on commit (fallback to on-input clearing)
       setCellColorsMap((prev) => {
         const sheetColors = prev.get(activeSheet);
         if (!sheetColors?.[rowIndex]?.[colKey]) return prev;
@@ -977,6 +1004,7 @@ const Index = () => {
           importedCells={importedCellsMap.get(activeSheet)}
           cellColors={cellColorsMap.get(activeSheet)}
           onCellChange={handleCellChange}
+          onCellInput={handleCellInputChange}
           onCellSelect={handleCellSelect}
           onRowReorder={handleRowReorder}
         />
