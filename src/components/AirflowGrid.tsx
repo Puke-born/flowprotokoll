@@ -54,6 +54,7 @@ interface GridCellProps {
   highlightImported: boolean;
   bgColor?: string;
   onCommit: (rowIdx: number, colKey: string, value: string) => void;
+  onInput?: (rowIdx: number, colKey: string) => void;
   onSelect?: (rowIdx: number, colKey: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, rowIdx: number, colIdx: number) => void;
 }
