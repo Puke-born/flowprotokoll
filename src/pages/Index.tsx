@@ -289,6 +289,18 @@ const Index = () => {
         }
         return next;
       });
+      // Clear imported (yellow) flag for this cell immediately on input
+      setImportedCellsMap((prev) => {
+        const sheetCells = prev.get(activeSheet);
+        if (!sheetCells?.[rowIndex]?.has(colKey)) return prev;
+        const next = new Map(prev);
+        const rowSets = [...sheetCells];
+        const newSet = new Set(rowSets[rowIndex]);
+        newSet.delete(colKey);
+        rowSets[rowIndex] = newSet;
+        next.set(activeSheet, rowSets);
+        return next;
+      });
     },
     [activeSheet]
   );
