@@ -475,20 +475,27 @@ const Index = () => {
       rows: s.rows,
       notes: s.notes,
     }));
-    // Build imported cells map
+    // Build imported cells map (yellow fallback) + original colors from the workbook
     const newImportedMap = new Map<number, Set<string>[]>();
+    const newColorsMap = new Map<number, Record<string, Record<string, string>>>();
     imported.forEach((s, sheetIdx) => {
-      const rowSets: Set<string>[] = s.rows.map((row) => {
+      const sheetColors = s.colors || {};
+      const rowSets: Set<string>[] = s.rows.map((row, rowIdx) => {
         const keys = new Set<string>();
         for (const [k, v] of Object.entries(row)) {
-          if (v) keys.add(k);
+          // cells that carry their own background color don't need the yellow marker
+          if (v && !sheetColors[rowIdx]?.[k]) keys.add(k);
         }
         return keys;
       });
       newImportedMap.set(sheetIdx, rowSets);
+      if (Object.keys(sheetColors).length > 0) {
+        newColorsMap.set(sheetIdx, sheetColors);
+      }
     });
     setImportedCellsMap(newImportedMap);
-    setCellColorsMap(new Map());
+    setCellColorsMap(newColorsMap);
+
     setSheets(newSheets);
     setActiveSheet(0);
     setImportDialogOpen(false);
