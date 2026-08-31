@@ -11,7 +11,25 @@ interface ImportedSheet {
   name: string;
   rows: GridRow[];
   notes: string;
+  /** rowIndex -> colKey -> "#RRGGBB" background color read from the workbook */
+  colors: Record<number, Record<string, string>>;
 }
+
+const IGNORED_FILLS = new Set(["#FFFFFF", "#000000"]);
+
+function readFillColor(cell: ExcelJS.Cell): string | null {
+  const fill = cell.fill as ExcelJS.FillPattern | undefined;
+  if (!fill || fill.type !== "pattern") return null;
+  if (fill.pattern === "none") return null;
+  const color = fill.fgColor ?? fill.bgColor;
+  const argb = color && "argb" in color ? color.argb : undefined;
+  if (!argb || argb.length < 6) return null;
+  const hex = `#${argb.slice(-6).toUpperCase()}`;
+  if (argb.length === 8 && argb.slice(0, 2).toUpperCase() === "00") return null;
+  if (IGNORED_FILLS.has(hex)) return null;
+  return hex;
+}
+
 
 function readCell(v: ExcelJS.CellValue | null | undefined): string {
   if (v == null) return "";
