@@ -76,15 +76,22 @@ export async function importSheets(file: ArrayBuffer, sheetNames: string[], file
   const wb = await loadWorkbook(file, fileName);
   return sheetNames.map((name) => {
     const ws = wb.getWorksheet(name);
-    if (!ws) return { name, rows: Array.from({ length: 36 }, () => ({})), notes: "" };
+    if (!ws) return { name, rows: Array.from({ length: 36 }, () => ({})), notes: "", colors: {} };
 
     // Rows 14-49, columns 1-10 (A-J), ExcelJS is 1-indexed
     const rows: GridRow[] = [];
+    const colors: Record<number, Record<string, string>> = {};
     for (let r = 14; r <= 49; r++) {
       const row: GridRow = {};
+      const rowIdx = r - 14;
       for (let c = 1; c <= 10; c++) {
-        const val = readCell(ws.getRow(r).getCell(c).value);
+        const cell = ws.getRow(r).getCell(c);
+        const val = readCell(cell.value);
         if (val !== "") row[COL_KEYS[c - 1]] = val;
+        const color = readFillColor(cell);
+        if (color) {
+          colors[rowIdx] = { ...(colors[rowIdx] || {}), [COL_KEYS[c - 1]]: color };
+        }
       }
       rows.push(row);
     }
@@ -100,6 +107,7 @@ export async function importSheets(file: ArrayBuffer, sheetNames: string[], file
     }
     while (noteLines.length && noteLines[noteLines.length - 1] === "") noteLines.pop();
 
-    return { name, rows, notes: noteLines.join("\n") };
+    return { name, rows, notes: noteLines.join("\n"), colors };
+
   });
 }
