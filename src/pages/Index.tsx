@@ -84,6 +84,39 @@ const IMPORTED_CELLS_KEY = "lfp-imported-cells";
 const CELL_COLORS_KEY = "lfp-cell-colors";
 const LAST_COLOR_KEY = "lfp-last-color";
 const FORMULA_BAR_KEY = "lfp-formula-bar-open";
+const BACKUPS_KEY = "lfp-backups";
+
+interface BackupSnapshot {
+  timestamp: number;
+  label: string;
+  sheets: Sheet[];
+  activeSheet: number;
+  importedCells: string;
+  cellColors: Record<string, Record<string, Record<string, string>>>;
+}
+
+const loadBackups = (): BackupSnapshot[] => {
+  try {
+    const raw = localStorage.getItem(BACKUPS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+};
+
+const formatBackupTime = (ts: number): string => {
+  const d = new Date(ts);
+  const now = new Date();
+  const time = d.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+  const isToday = d.toDateString() === now.toDateString();
+  if (isToday) return `Idag ${time}`;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return `Igår ${time}`;
+  return `${d.toLocaleDateString("sv-SE")} ${time}`;
+};
 
 
 type ActiveCell =
@@ -174,6 +207,8 @@ const Index = () => {
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
   const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
   const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove" | "export" | "reload">(null);
+  const [backupDialogOpen, setBackupDialogOpen] = useState(false);
+  const [backupList, setBackupList] = useState<BackupSnapshot[]>([]);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [formulaBarOpen, setFormulaBarOpen] = useState(() => {
