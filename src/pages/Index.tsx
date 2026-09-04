@@ -257,6 +257,31 @@ const Index = () => {
     return () => window.clearTimeout(id);
   }, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
 
+  // Backup buffer: snapshot current state before destructive actions (FIFO, max 10)
+  const stateRef = useRef({ sheets, activeSheet, importedCellsMap, cellColorsMap });
+  stateRef.current = { sheets, activeSheet, importedCellsMap, cellColorsMap };
+
+  const createBackupSnapshot = useCallback(() => {
+    try {
+      const { sheets: s, activeSheet: a, importedCellsMap: im, cellColorsMap: cm } = stateRef.current;
+      const cellColorsObj: Record<string, Record<string, Record<string, string>>> = {};
+      cm.forEach((v, k) => { cellColorsObj[k] = v; });
+      const snapshot: BackupSnapshot = {
+        timestamp: Date.now(),
+        label: s[a]?.name || s[0]?.name || "Blad 1",
+        sheets: s,
+        activeSheet: a,
+        importedCells: serializeImportedCells(im),
+        cellColors: cellColorsObj,
+      };
+      const backups = loadBackups();
+      backups.unshift(snapshot);
+      localStorage.setItem(BACKUPS_KEY, JSON.stringify(backups.slice(0, 10)));
+    } catch (err) {
+      console.error("Kunde inte skapa backup", err);
+    }
+  }, []);
+
   // Update-checker: check every 60 min + on window focus.
   useEffect(() => {
     const stop = initUpdateCheck(() => setUpdateAvailable(true), 60 * 60 * 1000);
