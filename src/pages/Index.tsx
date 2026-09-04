@@ -1146,6 +1146,37 @@ const Index = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={backupDialogOpen} onOpenChange={setBackupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Återställ från backup</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1 py-2 max-h-80 overflow-y-auto">
+            {backupList.length === 0 && (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Inga säkerhetskopior hittades.
+              </p>
+            )}
+            {backupList.map((b, i) => (
+              <button
+                key={b.timestamp + "-" + i}
+                onClick={() => handleRestoreBackup(b)}
+                className="w-full text-left px-3 py-2.5 rounded-md hover:bg-muted transition-colors flex items-center justify-between gap-3"
+              >
+                <span className="text-sm font-medium">
+                  {formatBackupTime(b.timestamp)}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {b.label} · {b.sheets.length} blad
+                </span>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBackupDialogOpen(false)}>Avbryt</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
         <DialogContent>
           <DialogHeader>
