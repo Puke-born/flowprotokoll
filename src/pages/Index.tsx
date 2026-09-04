@@ -977,6 +977,10 @@ const Index = () => {
                   <FolderOpen className="w-4 h-4 mr-2" />
                   Öppna projekt
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setBackupList(loadBackups()); setBackupDialogOpen(true); }}>
+                  <History className="w-4 h-4 mr-2" />
+                  Återställ från backup
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                   <Download className="w-4 h-4 mr-2" />
