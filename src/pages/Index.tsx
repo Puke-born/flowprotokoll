@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, FilePlus2, Save, FolderOpen, MoreVertical, RefreshCw } from "lucide-react";
+import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, FilePlus2, Save, FolderOpen, MoreVertical, RefreshCw, History } from "lucide-react";
 import { initUpdateCheck, forceHardReload } from "@/lib/updateCheck";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,39 @@ const IMPORTED_CELLS_KEY = "lfp-imported-cells";
 const CELL_COLORS_KEY = "lfp-cell-colors";
 const LAST_COLOR_KEY = "lfp-last-color";
 const FORMULA_BAR_KEY = "lfp-formula-bar-open";
+const BACKUPS_KEY = "lfp-backups";
+
+interface BackupSnapshot {
+  timestamp: number;
+  label: string;
+  sheets: Sheet[];
+  activeSheet: number;
+  importedCells: string;
+  cellColors: Record<string, Record<string, Record<string, string>>>;
+}
+
+const loadBackups = (): BackupSnapshot[] => {
+  try {
+    const raw = localStorage.getItem(BACKUPS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+};
+
+const formatBackupTime = (ts: number): string => {
+  const d = new Date(ts);
+  const now = new Date();
+  const time = d.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+  const isToday = d.toDateString() === now.toDateString();
+  if (isToday) return `Idag ${time}`;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return `Igår ${time}`;
+  return `${d.toLocaleDateString("sv-SE")} ${time}`;
+};
 
 
 type ActiveCell =
@@ -174,6 +207,8 @@ const Index = () => {
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string } | null>(null);
   const [lastColor, setLastColor] = useState(() => localStorage.getItem(LAST_COLOR_KEY) || "#fef9c3");
   const [confirmAction, setConfirmAction] = useState<null | "new" | "clear" | "remove" | "export" | "reload">(null);
+  const [backupDialogOpen, setBackupDialogOpen] = useState(false);
+  const [backupList, setBackupList] = useState<BackupSnapshot[]>([]);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [formulaBarOpen, setFormulaBarOpen] = useState(() => {
@@ -221,6 +256,31 @@ const Index = () => {
     }, 400);
     return () => window.clearTimeout(id);
   }, [sheets, activeSheet, importedCellsMap, cellColorsMap]);
+
+  // Backup buffer: snapshot current state before destructive actions (FIFO, max 10)
+  const stateRef = useRef({ sheets, activeSheet, importedCellsMap, cellColorsMap });
+  stateRef.current = { sheets, activeSheet, importedCellsMap, cellColorsMap };
+
+  const createBackupSnapshot = useCallback(() => {
+    try {
+      const { sheets: s, activeSheet: a, importedCellsMap: im, cellColorsMap: cm } = stateRef.current;
+      const cellColorsObj: Record<string, Record<string, Record<string, string>>> = {};
+      cm.forEach((v, k) => { cellColorsObj[k] = v; });
+      const snapshot: BackupSnapshot = {
+        timestamp: Date.now(),
+        label: s[a]?.name || s[0]?.name || "Blad 1",
+        sheets: s,
+        activeSheet: a,
+        importedCells: serializeImportedCells(im),
+        cellColors: cellColorsObj,
+      };
+      const backups = loadBackups();
+      backups.unshift(snapshot);
+      localStorage.setItem(BACKUPS_KEY, JSON.stringify(backups.slice(0, 10)));
+    } catch (err) {
+      console.error("Kunde inte skapa backup", err);
+    }
+  }, []);
 
   // Update-checker: check every 60 min + on window focus.
   useEffect(() => {
@@ -462,6 +522,8 @@ const Index = () => {
 
   const handleImportConfirm = useCallback(async () => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
+    createBackupSnapshot();
+    fileHandleRef.current = null;
     let imported: Awaited<ReturnType<typeof importSheets>>;
     try {
       imported = await importSheets(importFileBuffer, selectedSheetNames, importFileName);
@@ -501,7 +563,7 @@ const Index = () => {
     setImportDialogOpen(false);
     setImportFileBuffer(null);
     toast.success(`${newSheets.length} blad importerade`);
-  }, [importFileBuffer, importFileName, selectedSheetNames]);
+  }, [importFileBuffer, importFileName, selectedSheetNames, createBackupSnapshot]);
 
   const toggleSheetSelection = useCallback((name: string) => {
     setSelectedSheetNames((prev) =>
@@ -560,6 +622,8 @@ const Index = () => {
   const handleLoadProject = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    createBackupSnapshot();
+    fileHandleRef.current = null;
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
@@ -587,6 +651,20 @@ const Index = () => {
     };
     reader.readAsText(file);
     e.target.value = "";
+  }, [createBackupSnapshot]);
+
+  const handleRestoreBackup = useCallback((backup: BackupSnapshot) => {
+    fileHandleRef.current = null;
+    setSheets(backup.sheets);
+    setActiveSheet(Math.min(backup.activeSheet ?? 0, backup.sheets.length - 1));
+    setImportedCellsMap(backup.importedCells ? deserializeImportedCells(backup.importedCells) : new Map());
+    const map = new Map<number, Record<string, Record<string, string>>>();
+    if (backup.cellColors) {
+      Object.entries(backup.cellColors).forEach(([k, v]) => map.set(Number(k), v));
+    }
+    setCellColorsMap(map);
+    setBackupDialogOpen(false);
+    toast.success("Backup återställd");
   }, []);
 
   const doExport = useCallback(async () => {
@@ -613,6 +691,8 @@ const Index = () => {
   }, [importedCellsMap, doExport]);
 
   const handleClear = useCallback(() => {
+    createBackupSnapshot();
+    fileHandleRef.current = null;
     setSheets((prev) => {
       const next = [...prev];
       next[activeSheet] = { ...createEmptySheet(prev[activeSheet].name) };
@@ -629,15 +709,17 @@ const Index = () => {
       return next;
     });
     toast.info("Bladet har rensats");
-  }, [activeSheet]);
+  }, [activeSheet, createBackupSnapshot]);
 
   const handleNewProtocol = useCallback(() => {
+    createBackupSnapshot();
+    fileHandleRef.current = null;
     setSheets([createEmptySheet("Blad 1")]);
     setActiveSheet(0);
     setImportedCellsMap(new Map());
     setCellColorsMap(new Map());
     toast.success("Nytt protokoll skapat");
-  }, []);
+  }, [createBackupSnapshot]);
 
   const handleRenameSheet = useCallback(() => {
     setRenameValue(sheets[activeSheet].name);
@@ -895,6 +977,10 @@ const Index = () => {
                   <FolderOpen className="w-4 h-4 mr-2" />
                   Öppna projekt
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setBackupList(loadBackups()); setBackupDialogOpen(true); }}>
+                  <History className="w-4 h-4 mr-2" />
+                  Återställ från backup
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                   <Download className="w-4 h-4 mr-2" />
@@ -1057,6 +1143,37 @@ const Index = () => {
             <Button onClick={handleImportConfirm} disabled={selectedSheetNames.length === 0}>
               Importera ({selectedSheetNames.length} blad)
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={backupDialogOpen} onOpenChange={setBackupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Återställ från backup</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1 py-2 max-h-80 overflow-y-auto">
+            {backupList.length === 0 && (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Inga säkerhetskopior hittades.
+              </p>
+            )}
+            {backupList.map((b, i) => (
+              <button
+                key={b.timestamp + "-" + i}
+                onClick={() => handleRestoreBackup(b)}
+                className="w-full text-left px-3 py-2.5 rounded-md hover:bg-muted transition-colors flex items-center justify-between gap-3"
+              >
+                <span className="text-sm font-medium">
+                  {formatBackupTime(b.timestamp)}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {b.label} · {b.sheets.length} blad
+                </span>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBackupDialogOpen(false)}>Avbryt</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
