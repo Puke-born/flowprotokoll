@@ -651,6 +651,20 @@ const Index = () => {
     };
     reader.readAsText(file);
     e.target.value = "";
+  }, [createBackupSnapshot]);
+
+  const handleRestoreBackup = useCallback((backup: BackupSnapshot) => {
+    fileHandleRef.current = null;
+    setSheets(backup.sheets);
+    setActiveSheet(Math.min(backup.activeSheet ?? 0, backup.sheets.length - 1));
+    setImportedCellsMap(backup.importedCells ? deserializeImportedCells(backup.importedCells) : new Map());
+    const map = new Map<number, Record<string, Record<string, string>>>();
+    if (backup.cellColors) {
+      Object.entries(backup.cellColors).forEach(([k, v]) => map.set(Number(k), v));
+    }
+    setCellColorsMap(map);
+    setBackupDialogOpen(false);
+    toast.success("Backup återställd");
   }, []);
 
   const doExport = useCallback(async () => {
@@ -677,6 +691,8 @@ const Index = () => {
   }, [importedCellsMap, doExport]);
 
   const handleClear = useCallback(() => {
+    createBackupSnapshot();
+    fileHandleRef.current = null;
     setSheets((prev) => {
       const next = [...prev];
       next[activeSheet] = { ...createEmptySheet(prev[activeSheet].name) };
@@ -693,15 +709,17 @@ const Index = () => {
       return next;
     });
     toast.info("Bladet har rensats");
-  }, [activeSheet]);
+  }, [activeSheet, createBackupSnapshot]);
 
   const handleNewProtocol = useCallback(() => {
+    createBackupSnapshot();
+    fileHandleRef.current = null;
     setSheets([createEmptySheet("Blad 1")]);
     setActiveSheet(0);
     setImportedCellsMap(new Map());
     setCellColorsMap(new Map());
     toast.success("Nytt protokoll skapat");
-  }, []);
+  }, [createBackupSnapshot]);
 
   const handleRenameSheet = useCallback(() => {
     setRenameValue(sheets[activeSheet].name);
