@@ -563,7 +563,7 @@ const Index = () => {
     setImportDialogOpen(false);
     setImportFileBuffer(null);
     toast.success(`${newSheets.length} blad importerade`);
-  }, [importFileBuffer, importFileName, selectedSheetNames]);
+  }, [importFileBuffer, importFileName, selectedSheetNames, createBackupSnapshot]);
 
   const toggleSheetSelection = useCallback((name: string) => {
     setSelectedSheetNames((prev) =>
@@ -622,6 +622,8 @@ const Index = () => {
   const handleLoadProject = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    createBackupSnapshot();
+    fileHandleRef.current = null;
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
