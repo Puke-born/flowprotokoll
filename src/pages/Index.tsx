@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, FilePlus2, Save, FolderOpen, MoreVertical, RefreshCw } from "lucide-react";
+import { AirVent, Download, Upload, Trash2, Plus, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, FilePlus2, Save, FolderOpen, MoreVertical, RefreshCw, History } from "lucide-react";
 import { initUpdateCheck, forceHardReload } from "@/lib/updateCheck";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -522,6 +522,8 @@ const Index = () => {
 
   const handleImportConfirm = useCallback(async () => {
     if (!importFileBuffer || selectedSheetNames.length === 0) return;
+    createBackupSnapshot();
+    fileHandleRef.current = null;
     let imported: Awaited<ReturnType<typeof importSheets>>;
     try {
       imported = await importSheets(importFileBuffer, selectedSheetNames, importFileName);
